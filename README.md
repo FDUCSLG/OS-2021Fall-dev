@@ -15,6 +15,5 @@ Fall 2021, Fudan University.
 * `qemu-utils`
 * `mtools`
 * `dosfstools`
-* `wget`
 * `git submodule update --init --recursive`
 * `(cd libc && export CROSS_COMPILE=$(CROSS) && ./configure --target=$(ARCH))`
