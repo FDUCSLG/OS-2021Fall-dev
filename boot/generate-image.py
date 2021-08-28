@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# TODO: generate with filesystem image.
+# TODO: generate filesystem image.
 
 from os import system
 from pathlib import Path
@@ -17,23 +17,7 @@ n_boot_sectors = 128 * 1024
 filesystem_offset = boot_offset + n_boot_sectors
 n_filesystem_sectors = n_sectors - filesystem_offset
 
-boot_files = [
-    'armstub8-rpi4.bin',
-    'bootcode.bin',
-    'config.txt',
-    'COPYING.linux',
-    'fixup_cd.dat',
-    'fixup.dat',
-    'fixup4.dat',
-    'fixup4cd.dat',
-    'LICENCE.broadcom',
-    'start_cd.elf',
-    'start.elf',
-    'start4.elf',
-    'start4cd.elf'
-]
-
-def generate_boot_image(target, images):
+def generate_boot_image(target, files):
     sh(f'dd if=/dev/zero of={target} seek={n_boot_sectors - 1} bs={sector_size} count=1')
 
     # "-F 32" specifies FAT32.
@@ -41,26 +25,26 @@ def generate_boot_image(target, images):
     sh(f'mkfs.vfat -F 32 -s 1 {target}')
 
 	# copy files into boot partition.
-    for image in images:
-        sh(f'mcopy -i {target} {image} ::{Path(image).name}')
+    for file in files:
+        sh(f'mcopy -i {target} {file} ::{Path(file).name};')
 
 def generate_sd_image(target, boot_image):
     sh(f'dd if=/dev/zero of={target} seek={n_sectors - 1} bs={sector_size} count=1')
 
     boot_line = f'{boot_offset}, {n_boot_sectors * sector_size // 1024}K, c,'
     filesystem_line = f'{filesystem_offset}, {n_filesystem_sectors * sector_size // 1024}K, L,'
-    sh(f'echo -e "{boot_line}\n{filesystem_line}\n" | sfdisk {target}')
+    sh(f'echo -e "{boot_line}\\n{filesystem_line}\\n" | sfdisk {target}')
 
     sh(f'dd if={boot_image} of={target} seek={boot_offset} conv=notrunc')
 
 if __name__ == '__main__':
     parser = ArgumentParser()
-    parser.add_argument('kernel')
     parser.add_argument('root')
+    parser.add_argument('files', nargs='*')
     args = parser.parse_args()
 
-    sd_image = f'{args.root}/sd.img'
     boot_image = f'{args.root}/boot.img'
+    sd_image = f'{args.root}/sd.img'
 
-    generate_boot_image(boot_image, [args.kernel] + boot_files)
+    generate_boot_image(boot_image, args.files)
     generate_sd_image(sd_image, boot_image)

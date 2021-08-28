@@ -11,10 +11,32 @@ set(aarch64_objdump "${aarch64_prefix}-objdump")
 set(aarch64_objcopy "${aarch64_prefix}-objcopy")
 
 set(aarch64_qemu "qemu-system-aarch64")
+set(aarch64_gdb "gdb-multiarch")
 
 add_subdirectory(src)
 add_subdirectory(boot)
 
-# add_custom_target(qemu
-#     COMMAND ${aarch64_qemu} -M raspi3 -nographic -serial null -serial mon:stdio \
-#                             -drive file=${sd_img},if=sd,format=raw)
+get_property(kernel_elf GLOBAL PROPERTY kernel_elf_path)
+get_property(kernel_image GLOBAL PROPERTY kernel_image_path)
+get_property(sd_image GLOBAL PROPERTY sd_image_path)
+
+set(qemu_flags
+    -M "raspi3"
+    -nographic
+    -serial "null"
+    -serial "mon:stdio"
+    -drive "file=${sd_image},if=sd,format=raw"
+    -kernel "${kernel_image}")
+
+add_custom_target(qemu
+    COMMAND ${aarch64_qemu} ${qemu_flags}
+    DEPENDS image)
+add_custom_target(qemu-debug
+    COMMAND ${aarch64_qemu} ${qemu_flags} -S -gdb tcp::1234
+    DEPENDS image)
+add_custom_target(debug
+    COMMAND ${aarch64_gdb} --nx --quiet
+            -ex "set architecture aarch64"
+            -ex "file ${kernel_elf}"
+            -ex "target remote localhost:1234"
+    DEPENDS kernel)

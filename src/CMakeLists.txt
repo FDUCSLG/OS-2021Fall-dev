@@ -1,12 +1,11 @@
 set(CMAKE_C_COMPILER ${aarch64_gcc})
 set(CMAKE_ASM_COMPILER ${aarch64_gcc})
 
-include_directories(.)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
-set(WARNINGS "-Wall -Wextra")
+set(compiler_warnings "-Wall -Wextra")
 
-set(CMAKE_C_FLAGS " \
-    ${CMAKE_C_FLAGS} ${WARNINGS} \
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${compiler_warnings} \
     -fno-pie -fno-pic -fno-stack-protector \
     -fno-zero-initialized-in-bss \
     -static -fno-builtin -nostdlib -nostdinc -ffreestanding -nostartfiles \
@@ -17,7 +16,11 @@ set(CMAKE_C_FLAGS " \
 
 set(linker_script "${CMAKE_CURRENT_SOURCE_DIR}/linker.ld")
 set(LINK_DEPENDS "${LINK_DEPENDS} ${linker_script}")
-set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -T ${linker_script}")
+
+# "--build-id=none": remove ".note.gnu.build-id" section.
+set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} \
+    -T ${linker_script} \
+    -Wl,--build-id=none")
 
 add_subdirectory(aarch64)
 
@@ -30,8 +33,6 @@ set(kernel_elf "${kernel_prefix}.elf")
 set(kernel_asm "${kernel_prefix}.asm")
 set(kernel_hdr "${kernel_prefix}.hdr")
 set(kernel_img "${kernel_prefix}.img")
-
-set_property(GLOBAL PROPERTY kernel_image_path ${kernel_img})
 
 add_custom_command(
     OUTPUT ${kernel_asm}
@@ -49,3 +50,6 @@ add_custom_command(
     DEPENDS ${kernel_elf})
 
 add_custom_target(kernel ALL DEPENDS ${kernel_asm} ${kernel_hdr} ${kernel_img})
+
+set_property(GLOBAL PROPERTY kernel_elf_path ${kernel_elf})
+set_property(GLOBAL PROPERTY kernel_image_path ${kernel_img})
