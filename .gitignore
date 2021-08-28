@@ -1,8 +1,8 @@
 .gdb_history
 obj/
 .vscode/
-user/bin/
-reports/
+.cache/
+.mypy_cache/
 build/
 compile_flags.txt
 compile_commands.json

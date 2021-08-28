@@ -1,4 +1,4 @@
-#include "arm/mmu.h"
+#include "aarch64/mmu.h"
 #include "common/types.h"
 
 __attribute__((__aligned__(PAGE_SIZE))) uint64_t __kpte[512] = {

@@ -13,6 +13,7 @@ set(aarch64_objcopy "${aarch64_prefix}-objcopy")
 set(aarch64_qemu "qemu-system-aarch64")
 
 add_subdirectory(src)
+add_subdirectory(boot)
 
 # add_custom_target(qemu
 #     COMMAND ${aarch64_qemu} -M raspi3 -nographic -serial null -serial mon:stdio \
