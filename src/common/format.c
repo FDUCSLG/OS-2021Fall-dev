@@ -2,7 +2,7 @@
 #include <common/string.h>
 #include <common/types.h>
 
-static void _print_int(PutCharFunc put_char, void *ctx, int64_t u, int base, int is_signed) {
+static void _print_int(PutCharFunc put_char, void *ctx, int64_t u, int base, bool is_signed) {
     static char digit[] = "0123456789abcdef";
     static char buf[64];
 
@@ -22,7 +22,7 @@ static void _print_int(PutCharFunc put_char, void *ctx, int64_t u, int base, int
     } while (pos != buf);
 }
 
-void format(PutCharFunc put_char, void *ctx, const char *fmt, va_list arg) {
+void vformat(PutCharFunc put_char, void *ctx, const char *fmt, va_list arg) {
     const char *pos = fmt;
 
 #define _INT_CASE(ident, type, base, sign)                                                         \
@@ -33,7 +33,7 @@ void format(PutCharFunc put_char, void *ctx, const char *fmt, va_list arg) {
 
     char c;
     while ((c = *pos++) != '\0') {
-        int special = 0;
+        bool special = false;
 
         if (c == '%') {
             special = 1;
@@ -63,6 +63,8 @@ void format(PutCharFunc put_char, void *ctx, const char *fmt, va_list arg) {
             _INT_CASE("x", uint32_t, 16, 0)
             _INT_CASE("llx", uint64_t, 16, 0)
             _INT_CASE("p", uint64_t, 16, 0)
+            _INT_CASE("zu", size_t, 10, 0)
+            _INT_CASE("zd", ssize_t, 10, 1)
             else {
                 special = 0;
             }
@@ -73,4 +75,11 @@ void format(PutCharFunc put_char, void *ctx, const char *fmt, va_list arg) {
     }
 
 #undef _INT_CASE
+}
+
+void format(PutCharFunc put_char, void *ctx, const char *fmt, ...) {
+    va_list arg;
+    va_start(arg, fmt);
+    vformat(put_char, ctx, fmt, arg);
+    va_end(arg);
 }
