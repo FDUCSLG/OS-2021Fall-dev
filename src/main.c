@@ -1,13 +1,25 @@
 #include <aarch64/intrinsic.h>
 #include <core/console.h>
 
-void init_system() {
+static SpinLock init_lock = {.locked = 0};
+
+void init_system_once() {
+    if (!try_acquire_spinlock(&init_lock))
+        return;
+
     init_char_device();
     init_console();
+
+    release_spinlock(&init_lock);
 }
 
-void main() {
-    init_system();
+void init_system_per_core() {}
+
+NORETURN void main() {
+    init_system_once();
+
+    wait_spinlock(&init_lock);
+    init_system_per_core();
 
     if (cpuid() == 0)
         puts("Hello, world!");
@@ -25,6 +37,8 @@ void main() {
                5llu,
                printf,
                '!');
+    else
+        delay_us(10000);
 
-    while (1) {}
+    PANIC("TODO: add %s. CPUID = %zu", "scheduler", cpuid());
 }

@@ -7,6 +7,8 @@
 #include <common/variadic.h>
 #include <core/char_device.h>
 
+#define NEWLINE '\n'
+
 typedef struct {
     SpinLock lock;
     CharDevice device;
@@ -17,5 +19,9 @@ void init_console();
 void puts(const char *str);
 void vprintf(const char *fmt, va_list arg);
 void printf(const char *fmt, ...);
+
+NORETURN void _panic(const char *file, size_t line, const char *fmt, ...);
+
+#define PANIC(...) _panic(__FILE__, __LINE__, __VA_ARGS__)
 
 #endif
