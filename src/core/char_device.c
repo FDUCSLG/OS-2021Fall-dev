@@ -5,7 +5,7 @@ void init_char_device() {
     init_uart();
 }
 
-ICharDevice get_uart_char_device() {
-    ICharDevice device = {.get = uart_get_char, .put = uart_put_char};
-    return device;
+void init_uart_char_device(CharDevice *device) {
+    device->get = uart_get_char;
+    device->put = uart_put_char;
 }

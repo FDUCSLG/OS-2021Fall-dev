@@ -8,9 +8,9 @@
 typedef struct {
     char (*get)();
     void (*put)(char c);
-} ICharDevice;
+} CharDevice;
 
 void init_char_device();
-ICharDevice get_uart_char_device();
+void init_uart_char_device(CharDevice *device);
 
 #endif

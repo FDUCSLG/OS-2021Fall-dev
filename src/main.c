@@ -10,9 +10,21 @@ void main() {
     init_system();
 
     if (cpuid() == 0)
-        kernel_puts("Hello, world!");
+        puts("Hello, world!");
     else if (cpuid() == 1)
-        kernel_puts("Hello, rpi-os!");
+        puts("Hello, rpi-os!");
+    else if (cpuid() == 2)
+        printf("Hello, printf: %? %% %s %s %u %llu %d %lld %x %llx %p %c\n",
+               NULL,
+               "(aha)",
+               0u,
+               1llu,
+               -2,
+               -3ll,
+               4u,
+               5llu,
+               printf,
+               '!');
 
     while (1) {}
 }
