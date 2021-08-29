@@ -4,16 +4,36 @@
 
 static ConsoleContext ctx;
 
-#define PANIC_BAR_CHAR '='
-#define PANIC_BAR_LENGTH 32
-
 void init_console() {
     init_spinlock(&ctx.lock);
     init_uart_char_device(&ctx.device);
 }
 
+#define PANIC_BAR_CHAR   '='
+#define PANIC_BAR_LENGTH 32
+
+static bool panicked_flag = false;
+
+NORETURN void no_return() {
+    while (1)
+        arch_wfi();
+}
+
+// check whether other cores have already panicked.
+// if true, just terminate itself.
+// note: you must hold `ctx.lock` while checking.
+static void check_panicked() {
+    bool panicked = __atomic_load_n(&panicked_flag, __ATOMIC_ACQUIRE);
+
+    if (panicked) {
+        release_spinlock(&ctx.lock);
+        no_return();
+    }
+}
+
 void puts(const char *str) {
     acquire_spinlock(&ctx.lock);
+    check_panicked();
 
     while (*str != '\0') {
         ctx.device.put(*str++);
@@ -32,7 +52,10 @@ static void _put_char(void *_ctx, char c) {
 
 void vprintf(const char *fmt, va_list arg) {
     acquire_spinlock(&ctx.lock);
+    check_panicked();
+
     vformat(_put_char, NULL, fmt, arg);
+
     release_spinlock(&ctx.lock);
 }
 
@@ -44,9 +67,13 @@ void printf(const char *fmt, ...) {
 }
 
 NORETURN void _panic(const char *file, size_t line, const char *fmt, ...) {
-    // we hold `ctx.lock` here and will not release it.
-    // in order to prevent other cores printing messages.
     acquire_spinlock(&ctx.lock);
+    check_panicked();
+
+    // mark the whole system as panicked.
+    __atomic_store_n(&panicked_flag, true, __ATOMIC_RELEASE);
+
+    // print messages.
 
     for (size_t i = 0; i < PANIC_BAR_LENGTH; i++)
         ctx.device.put(PANIC_BAR_CHAR);
@@ -64,5 +91,7 @@ NORETURN void _panic(const char *file, size_t line, const char *fmt, ...) {
     // add a trailing newline for message.
     ctx.device.put(NEWLINE);
 
-    while (1) {}
+    release_spinlock(&ctx.lock);
+
+    no_return();
 }

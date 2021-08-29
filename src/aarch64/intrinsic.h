@@ -115,6 +115,26 @@ static inline void arch_set_ttbr1(uint64_t addr) {
     arch_tlbi_vmalle1is();
 }
 
+// set-event instruction.
+static inline void arch_sev() {
+    asm volatile("sev" ::: "memory");
+}
+
+// wait-for-event instruction.
+static inline void arch_wfe() {
+    asm volatile("wfe" ::: "memory");
+}
+
+// wait-for-interrupt instruction.
+static inline void arch_wfi() {
+    asm volatile("wfi" ::: "memory");
+}
+
+// yield instruction.
+static inline void arch_yield() {
+    asm volatile("yield" ::: "memory");
+}
+
 void delay_us(uint64_t n);
 
 #endif

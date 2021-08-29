@@ -1,10 +1,11 @@
+#include <aarch64/intrinsic.h>
 #include <common/spinlock.h>
 
 void init_spinlock(SpinLock *lock) {
     lock->locked = 0;
 }
 
-bool try_acquire_spinlock(SpinLock *lock){
+bool try_acquire_spinlock(SpinLock *lock) {
     return !lock->locked && !__atomic_test_and_set(&lock->locked, __ATOMIC_ACQUIRE);
 }
 

@@ -16,6 +16,8 @@ typedef struct {
 
 void init_console();
 
+NORETURN void no_return();
+
 void puts(const char *str);
 void vprintf(const char *fmt, va_list arg);
 void printf(const char *fmt, ...);
