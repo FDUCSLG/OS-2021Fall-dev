@@ -1,15 +1,18 @@
-#include <core/char_device.h>
+#include <aarch64/intrinsic.h>
+#include <core/console.h>
 
 void init_system() {
     init_char_device();
+    init_console();
 }
 
 void main() {
     init_system();
 
-    ICharDevice uart = get_uart_char_device();
-    uart.put('?');
+    if (cpuid() == 0)
+        kernel_puts("Hello, world!");
+    else if (cpuid() == 1)
+        kernel_puts("Hello, rpi-os!");
 
-    while (1) {
-    }
+    while (1) {}
 }

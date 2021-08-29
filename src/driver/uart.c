@@ -28,15 +28,15 @@ void init_uart() {
     device_put_uint32(AUX_MU_CNTL_REG, 3);
 }
 
-uint8_t uart_get_char() {
+char uart_get_char() {
     int state = device_get_uint32(AUX_MU_IIR_REG);
     if ((state & 1) || (state & 6) != 4)
-        return 0xff;
+        return -1;
 
     return device_get_uint32(AUX_MU_IO_REG) & 0xff;
 }
 
-void uart_put_char(uint8_t c) {
+void uart_put_char(char c) {
     while (!(device_get_uint32(AUX_MU_LSR_REG) & 0x20)) {}
 
     device_put_uint32(AUX_MU_IO_REG, c);

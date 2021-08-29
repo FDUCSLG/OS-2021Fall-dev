@@ -6,8 +6,8 @@
 #include <common/types.h>
 
 typedef struct {
-    uint8_t (*get)();
-    void (*put)(uint8_t c);
+    char (*get)();
+    void (*put)(char c);
 } ICharDevice;
 
 void init_char_device();
