@@ -33,7 +33,7 @@ def generate_sd_image(target, boot_image):
 
     boot_line = f'{boot_offset}, {n_boot_sectors * sector_size // 1024}K, c,'
     filesystem_line = f'{filesystem_offset}, {n_filesystem_sectors * sector_size // 1024}K, L,'
-    sh(f'echo -e "{boot_line}\\n{filesystem_line}\\n" | sfdisk {target}')
+    sh(f'printf "{boot_line}\\n{filesystem_line}\\n" | sfdisk {target}')
 
     sh(f'dd if={boot_image} of={target} seek={boot_offset} conv=notrunc')
 
