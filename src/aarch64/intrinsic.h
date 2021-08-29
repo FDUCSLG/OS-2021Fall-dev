@@ -1,9 +1,15 @@
 #pragma once
 
-#ifndef __AARCH64_ARCH_H__
-#define __AARCH64_ARCH_H__
+#ifndef _AARCH64_ARCH_H_
+#define _AARCH64_ARCH_H_
 
 #include <common/types.h>
+
+static inline size_t cpuid() {
+    uint64_t id;
+    asm volatile("mrs %[x], mpidr_el1" : [x] "=r"(id));
+    return id & 0xff;
+}
 
 // instruct compiler not to reorder instructions around the fence.
 static inline void compiler_fence() {

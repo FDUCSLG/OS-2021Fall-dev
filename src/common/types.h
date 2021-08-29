@@ -1,7 +1,7 @@
 #pragma once
 
-#ifndef __COMMON_TYPES_H__
-#define __COMMON_TYPES_H__
+#ifndef _COMMON_TYPES_H_
+#define _COMMON_TYPES_H_
 
 typedef signed char int8_t;
 typedef unsigned char uint8_t;

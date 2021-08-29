@@ -1,7 +1,7 @@
 #pragma once
 
-#ifndef __DRIVER_BASE_H__
-#define __DRIVER_BASE_H__
+#ifndef _DRIVER_BASE_H_
+#define _DRIVER_BASE_H_
 
 #define KERNEL_BASE 0xffff000000000000
 #define MMIO_BASE   (KERNEL_BASE + 0x3F000000)

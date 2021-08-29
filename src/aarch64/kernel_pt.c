@@ -1,6 +1,6 @@
 #include <aarch64/mmu.h>
 
-__attribute__((__aligned__(PAGE_SIZE))) PTEntries __kernel_pt_level3 = {
+__attribute__((__aligned__(PAGE_SIZE))) PTEntries _kernel_pt_level3 = {
     0x0 | PTE_KERNEL_DATA,          0x200000 | PTE_KERNEL_DATA,     0x400000 | PTE_KERNEL_DATA,
     0x600000 | PTE_KERNEL_DATA,     0x800000 | PTE_KERNEL_DATA,     0xa00000 | PTE_KERNEL_DATA,
     0xc00000 | PTE_KERNEL_DATA,     0xe00000 | PTE_KERNEL_DATA,     0x1000000 | PTE_KERNEL_DATA,
@@ -173,12 +173,12 @@ __attribute__((__aligned__(PAGE_SIZE))) PTEntries __kernel_pt_level3 = {
     0x3f600000 | PTE_KERNEL_DEVICE, 0x3f800000 | PTE_KERNEL_DEVICE, 0x3fa00000 | PTE_KERNEL_DEVICE,
     0x3fc00000 | PTE_KERNEL_DEVICE, 0x3fe00000 | PTE_KERNEL_DEVICE};
 
-__attribute__((__aligned__(PAGE_SIZE))) PTEntries __kernel_pt_level2 = {
-    K2P(__kernel_pt_level3) + PTE_TABLE,
+__attribute__((__aligned__(PAGE_SIZE))) PTEntries _kernel_pt_level2 = {
+    K2P(_kernel_pt_level3) + PTE_TABLE,
     0x40000000 | PTE_KERNEL_DEVICE,
     0,
     0xC0000000 | PTE_KERNEL_DEVICE,
 };
 
 // the first level of kernel PT (page table).
-__attribute__((__aligned__(PAGE_SIZE))) PTEntries kernel_pt = {K2P(__kernel_pt_level2) + PTE_TABLE};
+__attribute__((__aligned__(PAGE_SIZE))) PTEntries kernel_pt = {K2P(_kernel_pt_level2) + PTE_TABLE};

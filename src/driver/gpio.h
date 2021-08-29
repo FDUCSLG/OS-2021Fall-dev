@@ -1,7 +1,7 @@
 #pragma once
 
-#ifndef __DRIVER_GPIO_H__
-#define __DRIVER_GPIO_H__
+#ifndef _DRIVER_GPIO_H_
+#define _DRIVER_GPIO_H_
 
 #include <driver/base.h>
 

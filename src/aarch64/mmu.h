@@ -1,7 +1,7 @@
 #pragma once
 
-#ifndef __AARCH64_MMU_H__
-#define __AARCH64_MMU_H__
+#ifndef _AARCH64_MMU_H_
+#define _AARCH64_MMU_H_
 
 #include <common/types.h>
 

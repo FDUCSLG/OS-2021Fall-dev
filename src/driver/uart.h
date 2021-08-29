@@ -1,7 +1,7 @@
 #pragma once
 
-#ifndef __DRIVER_UART_H__
-#define __DRIVER_UART_H__
+#ifndef _DRIVER_UART_H_
+#define _DRIVER_UART_H_
 
 #include <common/types.h>
 

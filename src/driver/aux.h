@@ -1,7 +1,7 @@
 #pragma once
 
-#ifndef __DRIVER_AUX_H__
-#define __DRIVER_AUX_H__
+#ifndef _DRIVER_AUX_H_
+#define _DRIVER_AUX_H_
 
 #include <driver/base.h>
 

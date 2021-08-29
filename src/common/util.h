@@ -1,7 +1,7 @@
 #pragma once
 
-#ifndef __COMMON_UTIL_H__
-#define __COMMON_UTIL_H__
+#ifndef _COMMON_UTIL_H_
+#define _COMMON_UTIL_H_
 
 #include <common/types.h>
 
