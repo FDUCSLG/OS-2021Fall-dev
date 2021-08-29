@@ -63,8 +63,8 @@
 
 .section ".text.boot"
 
-.global _start
-_start:
+.global __start
+__start:
     /**
      * wake up other cores.
      * see <https://github.com/raspberrypi/tools/blob/master/armstubs/armstub8.S>.
@@ -151,10 +151,10 @@ el1:
     mrs     x0, mpidr_el1
     and     x0, x0, #3
 
-    /* sp = _start - CPUID * KERNEL_STACK_SIZE */
+    /* sp = __start - CPUID * KERNEL_STACK_SIZE */
     mov     x10, #KERNEL_STACK_SIZE
     mul     x10, x10, x0
-    ldr     x9, =_start
+    ldr     x9, =__start
     sub     x9, x9, x10
 
     /* set up stack pointer, must always be aligned to 16 bytes. */

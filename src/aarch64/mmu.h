@@ -3,7 +3,7 @@
 #ifndef __AARCH64_MMU_H__
 #define __AARCH64_MMU_H__
 
-#include "common/types.h"
+#include <common/types.h>
 
 #define PAGE_SIZE 4096
 

@@ -4,8 +4,7 @@ set(CMAKE_ASM_COMPILER ${aarch64_gcc})
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
 set(compiler_warnings "-Wall -Wextra")
-
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${compiler_warnings} \
+set(compiler_flags "${compiler_warnings} \
     -fno-pie -fno-pic -fno-stack-protector \
     -fno-zero-initialized-in-bss \
     -static -fno-builtin -nostdlib -nostdinc -ffreestanding -nostartfiles \
@@ -13,6 +12,9 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${compiler_warnings} \
     -MMD -MP \
     -mlittle-endian -mcmodel=small -mno-outline-atomics \
     -mcpu=cortex-a53 -mtune=cortex-a53")
+
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${compiler_flags}")
+set(CMAKE_ASM_FLAGS "${CMAKE_ASM_FLAGS} ${compiler_flags}")
 
 set(linker_script "${CMAKE_CURRENT_SOURCE_DIR}/linker.ld")
 set(LINK_DEPENDS "${LINK_DEPENDS} ${linker_script}")
@@ -23,10 +25,14 @@ set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} \
     -Wl,--build-id=none")
 
 add_subdirectory(aarch64)
+add_subdirectory(asm)
+add_subdirectory(common)
+add_subdirectory(core)
+add_subdirectory(driver)
 
 set(kernel_name kernel8)
 add_executable(${kernel_name}.elf main.c start.S)
-target_link_libraries(${kernel_name}.elf aarch64)
+target_link_libraries(${kernel_name}.elf asm core driver aarch64 common)
 
 set(kernel_prefix "${CMAKE_CURRENT_BINARY_DIR}/${kernel_name}")
 set(kernel_elf "${kernel_prefix}.elf")
