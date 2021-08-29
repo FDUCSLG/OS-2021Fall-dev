@@ -1,3 +1,5 @@
+set(CMAKE_C_STANDARD 11)
+
 set(CMAKE_C_COMPILER ${aarch64_gcc})
 set(CMAKE_ASM_COMPILER ${aarch64_gcc})
 
