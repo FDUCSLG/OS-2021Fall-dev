@@ -18,7 +18,7 @@
 #define SH_OUTER (2 << 8)
 #define SH_INNER (3 << 8)
 
-#define AF_USED  (1 << 10)
+#define AF_USED (1 << 10)
 
 #define PTE_NORMAL_NC ((MT_NORMAL_NC << 2) | AF_USED | SH_OUTER)
 #define PTE_NORMAL    ((MT_NORMAL << 2) | AF_USED | SH_OUTER)
@@ -37,18 +37,24 @@
 #define PTE_KERNEL_DEVICE (PTE_KERNEL | PTE_DEVICE | PTE_BLOCK)
 #define PTE_USER_DATA     (PTE_USER | PTE_NORMAL | PTE_PAGE)
 
+#define N_PTE_PER_TABLE 512
+
 #define KSPACE_MASK 0xffff000000000000
 
 // convert kernel address into physical address.
-#define K2P(addr) ((uint64_t) (addr) - KSPACE_MASK)
+#define K2P(addr) ((uint64_t)(addr)-KSPACE_MASK)
 
 // convert physical address into kernel address.
-#define P2K(addr) ((uint64_t) (addr) + KSPACE_MASK)
+#define P2K(addr) ((uint64_t)(addr) + KSPACE_MASK)
 
 // convert any address into kernel address space.
 #define KSPACE(addr) ((uint64_t)(addr) | KSPACE_MASK)
 
 // conver any address into physical address space.
 #define PSPACE(addr) ((uint64_t)(addr) & ~KSPACE_MASK)
+
+typedef uint64_t PTEntry;
+typedef PTEntry PTEntries[N_PTE_PER_TABLE];
+typedef PTEntry *PTEntriesPtr;
 
 #endif

@@ -126,7 +126,7 @@ el2:
     eret
 
 el1:
-    adr     x9, kpgdir
+    adr     x9, kernel_pt
 
     /* higher and lower half map to same physical memory region. */
     msr     ttbr0_el1, x9
