@@ -1,7 +1,7 @@
 #pragma once
 
-#ifndef _CORE_CHAR_DEVICE_
-#define _CORE_CHAR_DEVICE_
+#ifndef _CORE_CHAR_DEVICE_H_
+#define _CORE_CHAR_DEVICE_H_
 
 #include <common/types.h>
 
