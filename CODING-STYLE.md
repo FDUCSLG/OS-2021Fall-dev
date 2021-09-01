@@ -52,6 +52,15 @@ static int _hidden;
 static inline _helper_function();
 ```
 
+* 没有用到的函数参数，请使用 `(void) arg_name`。
+
+```c
+int64_t add(int64_t a, int64_t b, bool flag) {
+    (void)flag;
+    return a + b;
+}
+```
+
 * 使用头文件时，请使用尖括号 `<...>`。
 
 ```c
@@ -123,5 +132,7 @@ MemoryContext mem_ctx;
 ```
 
 * 请使用 `asm volatile` 而不是 `asm`。
+
+* 请尽可能消除所有的编译器警告，而不是忽略它们。
 
 欢迎对当前的代码风格提出意见。
