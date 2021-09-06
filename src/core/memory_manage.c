@@ -49,7 +49,7 @@ static void init_freelist(void *freelist_ptr, void *start, void *end) {
         freelist_free(f, p);
 }
 
-void init_memmory_manager_table(MemmoryManagerTable *mmt_ptr) {
+static void init_memmory_manager_table(MemmoryManagerTable *mmt_ptr) {
     mmt_ptr->memmory_manager = (void *)&freelist;
     mmt_ptr->page_init = init_freelist;
     mmt_ptr->page_alloc = freelist_alloc;
@@ -62,7 +62,7 @@ void init_memory_manager() {
     size_t phystop = 0x3F000000;
     size_t ROUNDUP_end = end + (PAGE_SIZE - (end % PAGE_SIZE)) % PAGE_SIZE;
     init_memmory_manager_table(mmt);
-    mmt->page_init(mmt.memmory_manager, ROUNDUP_end, P2K(phystop));
+    mmt.page_init(mmt.memmory_manager, ROUNDUP_end, P2K(phystop));
 }
 
 /*
@@ -70,7 +70,7 @@ void init_memory_manager() {
  */
 void free_range(void *start, void *end) {
     for (void *p = start; p + PAGE_SIZE <= end; p += PAGE_SIZE)
-        mmt->page_free(mmt.memmory_manager, p);
+        mmt.page_free(mmt.memmory_manager, p);
 }
 
 /*
@@ -78,9 +78,9 @@ void free_range(void *start, void *end) {
  * Returns 0 if failed else a pointer.
  * Corrupt the page by filling non-zero value in it for debugging.
  */
-void * kalloc() {
+void *kalloc() {
     acquire_spinlock(&memmory_manager_lock);
-    void *p = mmt->page_alloc(mmt.memmory_manager);
+    void *p = mmt.page_alloc(mmt.memmory_manager);
     release_spinlock(&memmory_manager_lock);
     return p;
 }
@@ -88,6 +88,6 @@ void * kalloc() {
 /* Free the physical memory pointed at by v. */
 void kfree(void *va) {
     acquire_spinlock(&memmory_manager_lock);
-    mmt->page_free(mmt.memmory_manager, va);
+    mmt.page_free(mmt.memmory_manager, va);
     release_spinlock(&memmory_manager_lock);
 }
