@@ -34,7 +34,7 @@ add_subdirectory(driver)
 
 set(kernel_name kernel8)
 add_executable(${kernel_name}.elf main.c start.S)
-target_link_libraries(${kernel_name}.elf asm core driver aarch64 common)
+target_link_libraries(${kernel_name}.elf core asm driver aarch64 common)
 
 set(kernel_prefix "${CMAKE_CURRENT_BINARY_DIR}/${kernel_name}")
 set(kernel_elf "${kernel_prefix}.elf")
