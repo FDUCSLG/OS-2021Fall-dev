@@ -6,7 +6,6 @@ extern char end[];
 
 MemmoryManagerTable mmt;
 SpinLock memmory_manager_lock;
-
 /*
  * Editable, as long as it works as a memory manager.
  */
@@ -21,7 +20,7 @@ static void freelist_page_free(void *, void *);
  * Returns 0 if the memory cannot be allocated.
  */
 static void *freelist_alloc(void *freelist_ptr) {
-    Freelist* f = (Freelist*) freelist_ptr; 
+    FreeList* f = (FreeList*) freelist_ptr; 
     void *p = f->next;  
     if (p)
         f->next = *(void **)p;
@@ -34,7 +33,7 @@ static void *freelist_alloc(void *freelist_ptr) {
  * Free the page of physical memory pointed at by v.
  */
 static void freelist_free(void *freelist_ptr, void *v) {
-    Freelist* f = (Freelist*) freelist_ptr; 
+    FreeList* f = (FreeList*) freelist_ptr; 
     *(void **)v = f->next;
     f->next = v;
 }
@@ -44,10 +43,11 @@ static void freelist_free(void *freelist_ptr, void *v) {
  */
 
 static void init_freelist(void *freelist_ptr, void *start, void *end) {
-    Freelist* f = (Freelist*) freelist_ptr; 
+    FreeList* f = (FreeList*) freelist_ptr; 
     for (void *p = start; p + PAGE_SIZE <= end; p += PAGE_SIZE)
         freelist_free(f, p);
 }
+
 
 static void init_memmory_manager_table(MemmoryManagerTable *mmt_ptr) {
     mmt_ptr->memmory_manager = (void *)&freelist;
@@ -60,8 +60,10 @@ void init_memory_manager() {
     // HACK Raspberry pi 4b.
     // size_t phystop = MIN(0x3F000000, mbox_get_arm_memory());
     size_t phystop = 0x3F000000;
-    size_t ROUNDUP_end = end + (PAGE_SIZE - (end % PAGE_SIZE)) % PAGE_SIZE;
-    init_memmory_manager_table(mmt);
+    
+    // notice here for roundup
+    size_t ROUNDUP_end = (uint64_t)end + (PAGE_SIZE - ((uint64_t)end % PAGE_SIZE)) % PAGE_SIZE;
+    init_memmory_manager_table(&mmt);
     mmt.page_init(mmt.memmory_manager, ROUNDUP_end, P2K(phystop));
 }
 

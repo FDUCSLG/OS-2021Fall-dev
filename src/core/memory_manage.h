@@ -5,7 +5,7 @@
 
 typedef struct {
     void *memmory_manager;
-    void (*page_init)(void *);
+    void (*page_init)(void *, void*, void*);
     void *(*page_alloc)(void *);
     void (*page_free)(void *, void *);
 } MemmoryManagerTable;
