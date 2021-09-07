@@ -1,5 +1,9 @@
 #include <aarch64/intrinsic.h>
+#include <common/string.h>
 #include <core/console.h>
+#include <core/trap.h>
+#include <driver/clock.h>
+#include <driver/interrupt.h>
 
 static SpinLock init_lock = {.locked = 0};
 
@@ -7,13 +11,29 @@ void init_system_once() {
     if (!try_acquire_spinlock(&init_lock))
         return;
 
+    // initialize BSS sections.
+    extern char edata[], end[];
+    memset(edata, 0, end - edata);
+
+    init_interrupt();
     init_char_device();
     init_console();
 
     release_spinlock(&init_lock);
 }
 
-void init_system_per_core() {}
+void hello() {
+    reset_clock(1000);
+    printf("CPU %d: HELLO!\n", cpuid());
+}
+
+void init_system_per_core() {
+    init_clock();
+    set_clock_handler(hello);
+    init_trap();
+
+    arch_enable_trap();
+}
 
 NORETURN void main() {
     init_system_once();
@@ -40,5 +60,6 @@ NORETURN void main() {
     else
         delay_us(10000);
 
-    PANIC("TODO: add %s. CPUID = %zu", "scheduler", cpuid());
+    // PANIC("TODO: add %s. CPUID = %zu", "scheduler", cpuid());
+    no_return();
 }
