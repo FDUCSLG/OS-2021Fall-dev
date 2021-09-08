@@ -4,10 +4,12 @@
 
 * 文件名使用小写和下划线。头文件后缀名为 `.h`，源代码文件后缀名为 `.c`
 
-* 注释使用双斜杠 `//` 或者 `/** ... */。注释首字母不大写。每一句话后面需要有句点（`.`）。
+* 注释使用双斜杠 `//` 或者 `/** ... */`。注释首字母不大写。每一句话后面需要有句点（`.`）。
 
 ```c
 // one line comment.
+
+/* one line comment. */
 
 // multi
 // line
@@ -52,7 +54,7 @@ static int _hidden;
 static inline _helper_function();
 ```
 
-* 没有用到的函数参数，请使用 `(void) arg_name`。
+* 没有用到的函数参数，请使用 `(void)arg_name`。
 
 ```c
 int64_t add(int64_t a, int64_t b, bool flag) {
@@ -84,16 +86,28 @@ int foo(int);        // NO
 int foo(int value);  // YES
 ```
 
-* 结构体内的虚函数可以不用额外 `typedef`。
+* 如果 `typedef` 只用到了一次，可以不用。
+
+```c
+// NO
+typedef void (*SomeHandler)(void);
+
+typedef struct {
+    SomeHandler handler;
+} Context;
+
+// YES
+typedef struct {
+    void (*handler)(void);
+} Context;
+```
 
 * 声明函数指针时请把参数名称也带上。
 
 ```c
 // NO
-typedef void (*SomeFunc)(int);
-
 typedef struct {
-    SomeFunc func;
+    void (*func)(int);
 } Interface;
 
 // YES
@@ -113,9 +127,13 @@ static inline int add(int a, int b);  // YES
 
 ```c
 NORETURN void panic();
+
+NORETURN void panic() {
+    while (1) {}
+}
 ```
 
-* 对于一个模块（如内存分配器），建议将所有全局变量放到一个结构体内。
+* 对于一个模块（如内存分配器），建议将所有全局变量放到一个结构体内。如果不需要被其它模块引用，请标记为 `static`。
 
 ```c
 // NO
@@ -128,7 +146,7 @@ typedef struct {
     size_t size;
 } MemoryContext;
 
-MemoryContext mem_ctx;
+static MemoryContext ctx;
 ```
 
 * 请使用 `asm volatile` 而不是 `asm`。
