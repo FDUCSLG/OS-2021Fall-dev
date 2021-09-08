@@ -22,7 +22,7 @@
  */
 ```
 
-* 结构体使用 `typedef struct { ... } StructName`。
+* 结构体使用 `typedef struct { ... } StructName;`，枚举类型使用 `typedef enum { ... } EnumName;`。
 
 * 变量名、函数名使用 `snake_case`，类型名、结构体名使用 `CamelCase`。
 
@@ -79,13 +79,6 @@ int is_okay();   // NO
 bool is_okay();  // YES
 ```
 
-* 函数声明中请把参数名称带上。
-
-```c
-int foo(int);        // NO
-int foo(int value);  // YES
-```
-
 * 如果 `typedef` 只用到了一次，可以不用。
 
 ```c
@@ -102,18 +95,26 @@ typedef struct {
 } Context;
 ```
 
-* 声明函数指针时请把参数名称也带上。
+* 函数和函数指针的申明中请带上参数名称。
 
 ```c
 // NO
+int foo(int);
 typedef struct {
     void (*func)(int);
 } Interface;
 
 // YES
+int foo(int value);
 typedef struct {
     void (*func)(int value);
 } Interface;
+```
+
+* 函数指针中若没有需要传入的参数，请填入 `void`。
+
+```c
+typedef int (*VoidFunc)(void);
 ```
 
 * 所有 `inline` 函数使用 `static inline`。
