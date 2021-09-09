@@ -40,5 +40,5 @@ NORETURN void main() {
     else
         delay_us(10000);
 
-    PANIC("TODO: add %s. CPUID = %zu", "scheduler", cpuid());
+    PANIC("TODO: test %s and add %s. CPUID = %zu", "memory", "scheduler", cpuid());
 }

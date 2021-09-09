@@ -1,6 +1,8 @@
 #include <aarch64/mmu.h>
 #include <common/spinlock.h>
 #include <core/memory_manage.h>
+#include <common/types.h>
+#include <core/console.h>
 
 extern char end[];
 
@@ -11,8 +13,8 @@ SpinLock memmory_manager_lock;
  */
 FreeList freelist;
 static void init_freelist(void *, void *, void *);
-static void *freelist_page_alloc(void *);
-static void freelist_page_free(void *, void *);
+static void *freelist_alloc(void *);
+static void freelist_free(void *, void *);
 
 /*
  * Allocate one 4096-byte page of physical memory.
@@ -25,7 +27,7 @@ static void *freelist_alloc(void *freelist_ptr) {
     if (p)
         f->next = *(void **)p;
     // else
-    //     panic;
+    //     PANIC;
     return p;
 }
 
@@ -62,9 +64,9 @@ void init_memory_manager() {
     size_t phystop = 0x3F000000;
     
     // notice here for roundup
-    size_t ROUNDUP_end = (uint64_t)end + (PAGE_SIZE - ((uint64_t)end % PAGE_SIZE)) % PAGE_SIZE;
+    void *ROUNDUP_end = ROUNDUP((void *)end, PAGE_SIZE);
     init_memmory_manager_table(&mmt);
-    mmt.page_init(mmt.memmory_manager, ROUNDUP_end, P2K(phystop));
+    mmt.page_init(mmt.memmory_manager, ROUNDUP_end, (void *)P2K(phystop));
 }
 
 /*

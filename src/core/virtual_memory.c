@@ -2,7 +2,9 @@
 #include <aarch64/mmu.h>
 #include <common/string.h>
 #include <core/virtual_memory.h>
-
+#include <core/memory_manage.h>
+#include <common/types.h>
+#include <core/console.h>
 
 /* For simplicity, we only support 4k pages in user pgdir. */
 
@@ -56,7 +58,7 @@ static PTEntriesPtr my_pgdir_init() {
     if (pgdir)
         memset(pgdir, 0, PAGE_SIZE);
     // else {
-    //     panic("my_pgdir_init: No free page.");
+    //     PANIC("my_pgdir_init: No free page.");
     // }
     return pgdir;
 }
@@ -81,33 +83,29 @@ static PTEntriesPtr my_pgdir_walk(PTEntriesPtr pgdir, void *vak, int alloc) {
                 pagetable[page_index] = K2P(p) | PTE_TABLE;
             }
             // else {
-            //     panic("my_pgdir_walk: No free page.");
+            //     PANIC("my_pgdir_walk: No free page.");
             // }
         }
-        pagetable = P2K(PTE_ADDRRESS(pagetable[page_index]));
+        pagetable = (PTEntriesPtr)(P2K(PTE_ADDRESS(pagetable[page_index])));
     }
     return &pagetable[virtual_address_tag & 0x1FF];
 }
 
 /* Fork a process's page table. */
 
-static PTEntriesPtr my_uvm_copy(PTEntriesPtr pgdir) {
-    return recur_uvm_copy(pgdir, 0);
-}
-
 static PTEntriesPtr recur_uvm_copy(PTEntriesPtr pgdir, int level) {
     PTEntriesPtr newpgdir = my_pgdir_init();
     // if (!newpgdir) {
-    //     panic("recur_uvm_copy: No page to alloc.");
+    //     PANIC("recur_uvm_copy: No page to alloc.");
     // }
     if (level < 3) {
         for (int i = 0; i < 512; i++) {
             if (pgdir[i] & PTE_VALID) {
                 // assert(pgdir[i] & PTE_TABLE);
-                PTEntriesPtr page_table = P2K(PTE_ADDRESS(pgdir[i]));
+                PTEntriesPtr page_table = (PTEntriesPtr)(P2K(PTE_ADDRESS(pgdir[i])));
                 PTEntriesPtr page_copy = recur_uvm_copy(page_table, level + 1);
                 // if (!page_copy) {
-                //     panic("recur_uvm_copy: No page to alloc.")
+                //     PANIC("recur_uvm_copy: No page to alloc.")
                 // }
                 newpgdir[i] = K2P(page_copy) | PTE_FLAGS(pgdir[i]);
             }
@@ -121,12 +119,12 @@ static PTEntriesPtr recur_uvm_copy(PTEntriesPtr pgdir, int level) {
                 // assert(pgdir[i] & PTE_USER);
                 // assert(pgdir[i] & PTE_NORMAL);
                 // assert(PTE_ADDRESS(pgdir[i]) < KERNBASE);
-                PTEntriesPtr page_content_ptr = P2K(PTE_ADDRESS(pgdir[i]));
+                PTEntriesPtr page_content_ptr = (PTEntriesPtr)(P2K(PTE_ADDRESS(pgdir[i])));
                 PTEntriesPtr page_copy = kalloc();
-                memmove(page_copy, page_content_ptr, PAGE_SIZE);
                 // if (!page_copy) {
-                //     panic("recur_uvm_copy: No page to alloc.")
+                //     PANIC("recur_uvm_copy: No page to alloc.")
                 // }
+                memmove(page_copy, page_content_ptr, PAGE_SIZE);
                 newpgdir[i] = K2P(page_copy) | PTE_FLAGS(pgdir[i]);
             }
         }
@@ -134,19 +132,19 @@ static PTEntriesPtr recur_uvm_copy(PTEntriesPtr pgdir, int level) {
     return newpgdir;
 }
 
+static PTEntriesPtr my_uvm_copy(PTEntriesPtr pgdir) {
+    return recur_uvm_copy(pgdir, 0);
+}
 
 /* Free a user page table and all the physical memory pages. */
 
-void my_vm_free(PTEntriesPtr pgdir) {
-    recur_vm_free(pgdir, 0);
-}
 
 void recur_vm_free(PTEntriesPtr pgdir, int level) {
     if (level < 3) {
         for (int i = 0; i < 512; i++) {
             if (pgdir[i] & PTE_VALID) {
                 // assert(pgdir[i] & PTE_TABLE);
-                PTEntriesPtr page_table = P2K(PTE_ADDRESS(pgdir[i]));
+                PTEntriesPtr page_table = (PTEntriesPtr)(P2K(PTE_ADDRESS(pgdir[i])));
                 recur_vm_free(page_table, level + 1);
             }
         }
@@ -155,12 +153,16 @@ void recur_vm_free(PTEntriesPtr pgdir, int level) {
     else {
         for (int i = 0; i < 512; i++) {
             if (pgdir[i] & PTE_VALID) {
-                PTEntriesPtr page_content_ptr = P2K(PTE_ADDRESS(pgdir[i]));
+                PTEntriesPtr page_content_ptr = (PTEntriesPtr)(P2K(PTE_ADDRESS(pgdir[i])));
                 kfree(page_content_ptr);
             }
         }
         kfree(pgdir);
     }
+}
+
+void my_vm_free(PTEntriesPtr pgdir) {
+    recur_vm_free(pgdir, 0);
 }
 
 /*
@@ -171,17 +173,17 @@ void recur_vm_free(PTEntriesPtr pgdir, int level) {
  */
 
 int my_uvm_map(PTEntriesPtr pgdir, void *va, size_t sz, uint64_t pa) {
-    void *ptr = va - va % PAGE_SIZE;
-    void *end = va + sz;
-    pa = pa - pa % PAGE_SIZE;
+    void *ptr = ROUNDDOWN(va,PAGE_SIZE);
+    void *end = (void *)((uint64_t)va + sz);
+    pa = ROUNDDOWN(pa,PAGE_SIZE);
     for (; ptr < end; ptr += PAGE_SIZE, pa += PAGE_SIZE) {
         PTEntriesPtr page_content_ptr = pgdir_walk(pgdir, ptr, 1);
         if (!page_content_ptr) {
-            printf("uvm_map: pgdir_walk failed.\n");
+            PANIC("uvm_map: pgdir_walk failed.\n");
             return -1;
         }
         // if (*page_content_ptr & PTE_VALID)
-        //     panic("uvm_map: remap.");
+        //     PANIC("uvm_map: remap.");
         *page_content_ptr = pa | PTE_USER_DATA;
     }
     return 0;
@@ -197,11 +199,11 @@ int my_uvm_map(PTEntriesPtr pgdir, void *va, size_t sz, uint64_t pa) {
 int my_uvm_alloc(PTEntriesPtr pgdir, size_t base, size_t stksz, size_t oldsz, size_t newsz) {
     // assert(stksz % PAGE_SIZE == 0);
     if (!(stksz < USERTOP && base <= oldsz && oldsz <= newsz && newsz < USERTOP - stksz)) {
-        printf("my_uvm_alloc: invalid arguments.");
+        PANIC("my_uvm_alloc: invalid arguments.");
         return 0;
     }
 
-    for (size_t a = oldsz + (PAGE_SIZE - oldsz % PAGE_SIZE) % PAGE_SIZE; a < newsz; a += PAGE_SIZE) {
+    for (size_t a = ROUNDUP(oldsz,PAGE_SIZE); a < newsz; a += PAGE_SIZE) {
         void *page = kalloc();
         if (!page) {
             printf("my_uvm_alloc: kalloc failed.");
@@ -231,18 +233,18 @@ int my_uvm_dealloc(PTEntriesPtr pgdir, size_t base, size_t oldsz, size_t newsz) 
     if (newsz >= oldsz || newsz < base)
         return oldsz;
 
-    for (size_t a = ROUNDUP(newsz, PGSIZE); a < oldsz; a += PGSIZE) {
-        PTEntriesPtr page_content_ptr = pgdir_walk(pgdir, ptr, 0);
-        if (pte && (*pte & PTE_VALID)) {
-            uint64_t pa = PTE_ADDRESS(*pte);
+    for (size_t a = ROUNDUP(newsz, PAGE_SIZE); a < oldsz; a += PAGE_SIZE) {
+        PTEntriesPtr page_content_ptr = pgdir_walk(pgdir, (void *)a, 0);
+        if (page_content_ptr && (*page_content_ptr & PTE_VALID)) {
+            uint64_t pa = PTE_ADDRESS(*page_content_ptr);
             // if (!pa) {
-            //     panic("GG");
+            //     PANIC("GG");
             // }
-            kfree(P2K(pa));
-            *pte = 0;
+            kfree((void *)P2K(pa));
+            *page_content_ptr = 0;
         }
         // else {
-        //     panic("attempt to free unallocated page");
+        //     PANIC("attempt to free unallocated page");
         // }
     }
 
@@ -263,14 +265,14 @@ int my_copyout(PTEntriesPtr pgdir, void *va, void *p, size_t len) {
     if ((size_t)va + len > USERTOP)
         return -1;
     for (; len; len -= n, va += n) {
-        page_offset = va % PAGE_SIZE;
+        page_offset = (size_t)va % PAGE_SIZE;
         page_content_ptr = pgdir_walk(pgdir, va, 1);
         if (!page_content_ptr) {
             printf("my_copyout: pgdir_walk failed");
             return -1;
         }
         if (*page_content_ptr & PTE_VALID) {
-            page = P2K(PTE_ADDRESS(*pte));
+            page = (void *)(P2K(PTE_ADDRESS(*page_content_ptr)));
         } 
         else {
             page = kalloc();
@@ -278,7 +280,7 @@ int my_copyout(PTEntriesPtr pgdir, void *va, void *p, size_t len) {
                 printf("my_copyout: kalloc failed.");
                 return -1;
             }
-            *page_content_ptr = V2P(page) | PTE_USER_DATA;
+            *page_content_ptr = K2P(page) | PTE_USER_DATA;
         }
         n = PAGE_SIZE - page_offset;
         n = n < len ? n : len;
