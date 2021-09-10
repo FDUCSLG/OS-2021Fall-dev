@@ -1,8 +1,5 @@
 #pragma once
 
-#ifndef _COMMON_STRING_H_
-#define _COMMON_STRING_H_
-
 #include <common/defines.h>
 
 void *memset(void *s, int c, usize n);
@@ -19,5 +16,3 @@ char *strncpy_fast(char *restrict dest, const char *restrict src, usize n);
 int strncmp(const char *s1, const char *s2, usize n);
 
 usize strlen(const char *s);
-
-#endif

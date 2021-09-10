@@ -1,8 +1,5 @@
 #pragma once
 
-#ifndef _COMMON_DEFINES_H_
-#define _COMMON_DEFINES_H_
-
 typedef _Bool bool;
 
 #define true 1
@@ -26,5 +23,3 @@ typedef u64 usize;
 #define NORETURN _Noreturn
 
 NORETURN void no_return();
-
-#endif

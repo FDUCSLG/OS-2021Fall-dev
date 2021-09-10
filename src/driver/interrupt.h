@@ -1,8 +1,5 @@
 #pragma once
 
-#ifndef _DRIVER_INTERRUPT_H_
-#define _DRIVER_INTERRUPT_H_
-
 #include <common/defines.h>
 
 // "IRQ" is the shorthand for "interrupt".
@@ -19,5 +16,3 @@ typedef void (*InterruptHandler)(void);
 void init_interrupt();
 void set_interrupt_handler(InterruptType type, InterruptHandler handler);
 void interrupt_global_handler();
-
-#endif

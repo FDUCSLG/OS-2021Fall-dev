@@ -1,8 +1,5 @@
 #pragma once
 
-#ifndef _AARCH64_ARCH_H_
-#define _AARCH64_ARCH_H_
-
 #include <common/defines.h>
 
 static inline usize cpuid() {
@@ -144,5 +141,3 @@ static inline void arch_disable_trap() {
 }
 
 void delay_us(u64 n);
-
-#endif

@@ -1,8 +1,5 @@
 #pragma once
 
-#ifndef _CORE_TRAP_H_
-#define _CORE_TRAP_H_
-
 #include <core/trapframe.h>
 
 #define ESR_EC_SHIFT 26
@@ -17,5 +14,3 @@
 void init_trap();
 void trap_global_handler(Trapframe *frame);
 NORETURN void trap_error_handler(u64 type);
-
-#endif

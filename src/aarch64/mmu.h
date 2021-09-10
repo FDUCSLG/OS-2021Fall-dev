@@ -1,8 +1,5 @@
 #pragma once
 
-#ifndef _AARCH64_MMU_H_
-#define _AARCH64_MMU_H_
-
 #include <common/defines.h>
 
 #define PAGE_SIZE 4096
@@ -56,5 +53,3 @@
 typedef u64 PTEntry;
 typedef PTEntry PTEntries[N_PTE_PER_TABLE];
 typedef PTEntry *PTEntriesPtr;
-
-#endif
