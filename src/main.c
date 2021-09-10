@@ -6,6 +6,8 @@
 #include <driver/interrupt.h>
 #include <core/memory_manage.h>
 #include <core/virtual_memory.h>
+#include <core/sched.h>
+#include <core/cpu.h>
 
 static SpinLock init_lock = {.locked = 0};
 
@@ -20,6 +22,8 @@ void init_system_once() {
     init_interrupt();
     init_char_device();
     init_console();
+    init_sched();
+    spawn_init_process();
 
     init_memory_manager();
     init_virtual_memory();
@@ -40,6 +44,7 @@ void init_system_per_cpu() {
     init_trap();
 
     arch_enable_trap();
+    init_cpu();
 }
 
 NO_RETURN void main() {
