@@ -31,11 +31,11 @@
 
 我们为大家提供了一台服务器，并配好了这个学期实验所需要的所有编译环境。大家可以通过 `ssh` 登录到服务器上，可以在服务器上直接写代码、调试运行内核。详见 [服务器环境手册](./rpi-os-container-handbook)。
 
-在服务器上 clone 代码仓库（将`18307130024`改成你的学号）：
+在服务器上 clone 代码仓库：
 
 ```sh
-git clone git://github.com/FDUCSLG/OS-2021Fall-Fudan 18307130024/
-cd 18307130024
+cd ~/data
+git clone git://github.com/FDUCSLG/OS-2021Fall-Fudan
 
 # 切换到本实验地分支
 git checkout lab1
@@ -104,13 +104,5 @@ end
 
 作业：在 `src/main.c` 中添加代码，要求输出 `Hello world!` 。截止日期为下周上课前（`2021/9/24 15:24:59`）。
 
-提交：将代码提交到服务器的 `/data/lab1/` 目录下。在 shell 里执行：
-
-```sh
-// In 18307130024
-cd ..
-cp -r 18307130024/ /data/lab1/
-```
-
-将实验报告提交到 elearning 上，格式为`学号-lab1.pdf`。本次实验中，报告不计分。
+提交：将实验报告提交到 elearning 上，格式为`学号-lab1.pdf`。本次实验中，报告不计分。
 
