@@ -9,34 +9,34 @@
 /* For simplicity, we only support 4k pages in user pgdir. */
 
 extern PTEntries kpgdir;
-VirtualMemoryTable vmt;
+VMemory vmem;
 
-PTEntriesPtr pgdir_init() {
-    return vmt.pgdir_init();
+PTEntriesPtr pgdir_init(void) {
+    return vmem.pgdir_init();
 }
 
-PTEntriesPtr pgdir_walk(PTEntriesPtr pgdir, void *vak, int alloc) {
-    return vmt.pgdir_walk(pgdir, vak, alloc);
+PTEntriesPtr pgdir_walk(PTEntriesPtr pgdir, void *kernel_address, int alloc) {
+    return vmem.pgdir_walk(pgdir, kernel_address, alloc);
 }
 
 PTEntriesPtr uvm_copy(PTEntriesPtr pgdir) {
-    return vmt.uvm_copy(pgdir);
+    return vmem.uvm_copy(pgdir);
 }
 
-void vm_free(PTEntriesPtr pgdir) {
-    vmt.vm_free(pgdir);
+NORETURN void vm_free(PTEntriesPtr pgdir) {
+    vmem.vm_free(pgdir);
 }
 
-int uvm_map(PTEntriesPtr pgdir, void *va, size_t sz, uint64_t pa) {
-    return vmt.uvm_map(pgdir, va, sz, pa);
+int uvm_map(PTEntriesPtr pgdir, void *kernel_address, size_t size, uint64_t physical_address) {
+    return vmem.uvm_map(pgdir, kernel_address, size, physical_address);
 }
 
 int uvm_alloc(PTEntriesPtr pgdir, size_t base, size_t stksz, size_t oldsz, size_t newsz) {
-    return vmt.uvm_alloc(pgdir, base, stksz, oldsz, newsz);
+    return vmem.uvm_alloc(pgdir, base, stksz, oldsz, newsz);
 }
 
 int uvm_dealloc(PTEntriesPtr pgdir, size_t base, size_t oldsz, size_t newsz) {
-    return vmt.uvm_dealloc(pgdir, base, oldsz, newsz);
+    return vmem.uvm_dealloc(pgdir, base, oldsz, newsz);
 }
 
 void uvm_switch(PTEntriesPtr pgdir) {
@@ -44,8 +44,8 @@ void uvm_switch(PTEntriesPtr pgdir) {
     arch_set_ttbr0(K2P(pgdir));
 }
 
-int copyout(PTEntriesPtr pgdir, void *va, void *p, size_t len) {
-    return vmt.copyout(pgdir, va, p, len);
+int copyout(PTEntriesPtr pgdir, void *tgt_address, void *src_address, size_t len) {
+    return vmem.copyout(pgdir, tgt_address, src_address, len);
 }
 
 
@@ -53,7 +53,7 @@ int copyout(PTEntriesPtr pgdir, void *va, void *p, size_t len) {
  * generate a empty page as page directory
  */
 
-static PTEntriesPtr my_pgdir_init() {
+static PTEntriesPtr my_pgdir_init(void) {
     PTEntriesPtr pgdir = kalloc();
     if (pgdir)
         memset(pgdir, 0, PAGE_SIZE);
@@ -139,7 +139,7 @@ static PTEntriesPtr my_uvm_copy(PTEntriesPtr pgdir) {
 /* Free a user page table and all the physical memory pages. */
 
 
-void recur_vm_free(PTEntriesPtr pgdir, int level) {
+NORETURN static void recur_vm_free(PTEntriesPtr pgdir, int level) {
     if (level < 3) {
         for (int i = 0; i < 512; i++) {
             if (pgdir[i] & PTE_VALID) {
@@ -161,7 +161,7 @@ void recur_vm_free(PTEntriesPtr pgdir, int level) {
     }
 }
 
-void my_vm_free(PTEntriesPtr pgdir) {
+NORETURN static void my_vm_free(PTEntriesPtr pgdir) {
     recur_vm_free(pgdir, 0);
 }
 
@@ -172,7 +172,7 @@ void my_vm_free(PTEntriesPtr pgdir) {
  * Return -1 if failed else 0.
  */
 
-int my_uvm_map(PTEntriesPtr pgdir, void *va, size_t sz, uint64_t pa) {
+static int my_uvm_map(PTEntriesPtr pgdir, void *va, size_t sz, uint64_t pa) {
     void *ptr = ROUNDDOWN(va,PAGE_SIZE);
     void *end = (void *)((uint64_t)va + sz);
     pa = ROUNDDOWN(pa,PAGE_SIZE);
@@ -196,7 +196,7 @@ int my_uvm_map(PTEntriesPtr pgdir, void *va, size_t sz, uint64_t pa) {
  * Returns new size or 0 on error.
  */
 
-int my_uvm_alloc(PTEntriesPtr pgdir, size_t base, size_t stksz, size_t oldsz, size_t newsz) {
+static int my_uvm_alloc(PTEntriesPtr pgdir, size_t base, size_t stksz, size_t oldsz, size_t newsz) {
     // assert(stksz % PAGE_SIZE == 0);
     if (!(stksz < USERTOP && base <= oldsz && oldsz <= newsz && newsz < USERTOP - stksz)) {
         PANIC("my_uvm_alloc: invalid arguments.");
@@ -229,7 +229,7 @@ int my_uvm_alloc(PTEntriesPtr pgdir, size_t base, size_t stksz, size_t oldsz, si
  * process size.  Returns the new process size.
  */
 
-int my_uvm_dealloc(PTEntriesPtr pgdir, size_t base, size_t oldsz, size_t newsz) {
+static int my_uvm_dealloc(PTEntriesPtr pgdir, size_t base, size_t oldsz, size_t newsz) {
     if (newsz >= oldsz || newsz < base)
         return oldsz;
 
@@ -258,7 +258,7 @@ int my_uvm_dealloc(PTEntriesPtr pgdir, size_t base, size_t oldsz, size_t newsz) 
  * Useful when pgdir is not the current page table.
  */
 
-int my_copyout(PTEntriesPtr pgdir, void *va, void *p, size_t len) {
+static int my_copyout(PTEntriesPtr pgdir, void *va, void *p, size_t len) {
     void *page;
     size_t n, page_offset;
     PTEntriesPtr page_content_ptr;
@@ -298,13 +298,13 @@ int my_copyout(PTEntriesPtr pgdir, void *va, void *p, size_t len) {
 }
 
 
-void virtual_memory_init(VirtualMemoryTable *vmt_ptr) {
-    vmt_ptr->pgdir_init = my_pgdir_init;
-    vmt_ptr->pgdir_walk = my_pgdir_walk;
-    vmt_ptr->uvm_copy = my_uvm_copy;
-    vmt_ptr->vm_free = vm_free;
-    vmt_ptr->uvm_map = my_uvm_map;
-    vmt_ptr->uvm_alloc = my_uvm_alloc;
-    vmt_ptr->uvm_dealloc = my_uvm_dealloc;
-    vmt_ptr->copyout = my_copyout;
+NORETURN void vmemory_init(VMemory *vmem_ptr) {
+    vmem_ptr->pgdir_init = my_pgdir_init;
+    vmem_ptr->pgdir_walk = my_pgdir_walk;
+    vmem_ptr->uvm_copy = my_uvm_copy;
+    vmem_ptr->vm_free = my_vm_free;
+    vmem_ptr->uvm_map = my_uvm_map;
+    vmem_ptr->uvm_alloc = my_uvm_alloc;
+    vmem_ptr->uvm_dealloc = my_uvm_dealloc;
+    vmem_ptr->copyout = my_copyout;
 }

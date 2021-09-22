@@ -11,26 +11,26 @@
  */
 
 typedef struct {
-    PTEntriesPtr (*pgdir_init)();
-    PTEntriesPtr (*pgdir_walk)(PTEntriesPtr, void *, int);
-    PTEntriesPtr (*uvm_copy)(PTEntriesPtr);
-    void (*vm_free) (PTEntriesPtr);
-    int (*uvm_map)(PTEntriesPtr, void *, size_t, uint64_t);
-    int (*uvm_alloc) (PTEntriesPtr, size_t, size_t, size_t, size_t);
-    int (*uvm_dealloc) (PTEntriesPtr, size_t, size_t, size_t);
-    int (*copyout)(PTEntriesPtr, void *, void *, size_t);
-} VirtualMemoryTable;
+    PTEntriesPtr (*pgdir_init)(void);
+    PTEntriesPtr (*pgdir_walk)(PTEntriesPtr pgdir, void *kernel_address, int alloc);
+    PTEntriesPtr (*uvm_copy)(PTEntriesPtr pgdir);
+    NORETURN void (*vm_free) (PTEntriesPtr pgdir);
+    int (*uvm_map)(PTEntriesPtr pgdir, void *kernel_address, size_t size, uint64_t physical_address);
+    int (*uvm_alloc) (PTEntriesPtr pgdir, size_t base, size_t stksz, size_t oldsz, size_t newsz);
+    int (*uvm_dealloc) (PTEntriesPtr pgdir, size_t base, size_t oldsz, size_t newsz);
+    int (*copyout)(PTEntriesPtr pgdir, void *tgt_address, void *src_address, size_t len);
+} VMemory;
 
 
-PTEntriesPtr pgdir_init();
-PTEntriesPtr pgdir_walk(PTEntriesPtr, void *, int);
-PTEntriesPtr uvm_copy(PTEntriesPtr);
-void vm_free(PTEntriesPtr);
-int uvm_map(PTEntriesPtr, void *, size_t, uint64_t);
-int uvm_alloc(PTEntriesPtr, size_t, size_t, size_t, size_t);
-int uvm_dealloc(PTEntriesPtr, size_t, size_t, size_t);
-void uvm_switch(PTEntriesPtr);
-int copyout(PTEntriesPtr, void *, void *, size_t);
-void virtual_memory_init(VirtualMemoryTable *);
+PTEntriesPtr pgdir_init(void);
+PTEntriesPtr pgdir_walk(PTEntriesPtr pgdir, void *kernel_address, int alloc);
+PTEntriesPtr uvm_copy(PTEntriesPtr pgdir);
+NORETURN void vm_free(PTEntriesPtr pgdir);
+int uvm_map(PTEntriesPtr pgdir, void *kernel_address, size_t size, uint64_t physical_address);
+int uvm_alloc(PTEntriesPtr pgdir, size_t base, size_t stksz, size_t oldsz, size_t newsz);
+int uvm_dealloc(PTEntriesPtr pgdir, size_t base, size_t oldsz, size_t newsz);
+NORETURN void uvm_switch(PTEntriesPtr pgdir);
+int copyout(PTEntriesPtr pgdir, void *tgt_address, void *src_address, size_t len);
+NORETURN void vmemory_init(VMemory *vmem_ptr)
 
 #endif

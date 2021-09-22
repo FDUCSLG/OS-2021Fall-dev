@@ -1,80 +1,80 @@
 #include <aarch64/mmu.h>
-#include <common/spinlock.h>
 #include <core/memory_manage.h>
 #include <common/types.h>
 #include <core/console.h>
 
 extern char end[];
-
-MemmoryManagerTable mmt;
-SpinLock memmory_manager_lock;
+PMemory pmem;
+FreeListNode head;
 /*
  * Editable, as long as it works as a memory manager.
  */
-FreeList freelist;
-static void init_freelist(void *, void *, void *);
-static void *freelist_alloc(void *);
-static void freelist_free(void *, void *);
+NORETURN static void freelist_init(void *datastructure_ptr, void *start, void *end);
+static void *freelist_alloc(void *datastructure_ptr);
+NORETURN static void freelist_free(void *datastructure_ptr, void *page_address);
 
 /*
  * Allocate one 4096-byte page of physical memory.
  * Returns a pointer that the kernel can use.
  * Returns 0 if the memory cannot be allocated.
  */
-static void *freelist_alloc(void *freelist_ptr) {
-    FreeList* f = (FreeList*) freelist_ptr; 
-    void *p = f->next;  
-    if (p)
-        f->next = *(void **)p;
-    // else
-    //     PANIC;
+static void *freelist_alloc(void *datastructure_ptr) {
+    FreeListNode *f = (FreeListNode *) datastructure_ptr; 
+    void *p = f -> next;  
+    if (p) {
+        void *np = ((FreeListNode *)p) -> next;
+        f->next = np;
+    }
     return p;
 }
 
 /*
- * Free the page of physical memory pointed at by v.
+ * Free the page of physical memory pointed at by page_address.
  */
-static void freelist_free(void *freelist_ptr, void *v) {
-    FreeList* f = (FreeList*) freelist_ptr; 
-    *(void **)v = f->next;
-    f->next = v;
+NORETURN static void freelist_free(void *datastructure_ptr, void *page_address) {
+    FreeListNode* f = (FreeListNode*) datastructure_ptr; 
+    if (page_address) {
+        ((FreeListNode *)page_address) -> next = f -> next;
+        f -> next = page_address;
+    }
 }
 
 /*
  * Record all memory from start to end to freelist as initialization.
  */
 
-static void init_freelist(void *freelist_ptr, void *start, void *end) {
-    FreeList* f = (FreeList*) freelist_ptr; 
-    for (void *p = start; p + PAGE_SIZE <= end; p += PAGE_SIZE)
+NORETURN static void freelist_init(void *datastructure_ptr, void *start, void *end) {
+    FreeListNode* f = (FreeListNode*) datastructure_ptr; 
+    for (void *p = start; p + PAGE_SIZE <= end; p += PAGE_SIZE) {
         freelist_free(f, p);
+    }
 }
 
 
-static void init_memmory_manager_table(MemmoryManagerTable *mmt_ptr) {
-    mmt_ptr->memmory_manager = (void *)&freelist;
-    mmt_ptr->page_init = init_freelist;
-    mmt_ptr->page_alloc = freelist_alloc;
-    mmt_ptr->page_free = freelist_free;
+NORETURN static void init_PMemory(PMemory *pmem_ptr) {
+    pmem_ptr->struct_ptr = (void *)&head;
+    pmem_ptr->page_init = freelist_init;
+    pmem_ptr->page_alloc = freelist_alloc;
+    pmem_ptr->page_free = freelist_free;
 }
 
-void init_memory_manager() {
+NORETURN void init_memory_manager(void) {
     // HACK Raspberry pi 4b.
     // size_t phystop = MIN(0x3F000000, mbox_get_arm_memory());
     size_t phystop = 0x3F000000;
     
     // notice here for roundup
     void *ROUNDUP_end = ROUNDUP((void *)end, PAGE_SIZE);
-    init_memmory_manager_table(&mmt);
-    mmt.page_init(mmt.memmory_manager, ROUNDUP_end, (void *)P2K(phystop));
+    init_PMemory(&pmem);
+    pmem.page_init(pmem.struct_ptr, ROUNDUP_end, (void *)P2K(phystop));
 }
 
 /*
  * Record all memory from start to end to memory manager.
  */
-void free_range(void *start, void *end) {
+NORETURN void free_range(void *start, void *end) {
     for (void *p = start; p + PAGE_SIZE <= end; p += PAGE_SIZE)
-        mmt.page_free(mmt.memmory_manager, p);
+        pmem.page_free(pmem.struct_ptr, p);
 }
 
 /*
@@ -82,16 +82,16 @@ void free_range(void *start, void *end) {
  * Returns 0 if failed else a pointer.
  * Corrupt the page by filling non-zero value in it for debugging.
  */
-void *kalloc() {
-    acquire_spinlock(&memmory_manager_lock);
-    void *p = mmt.page_alloc(mmt.memmory_manager);
-    release_spinlock(&memmory_manager_lock);
+void *kalloc(void) {
+    acquire_spinlock(&pmem.lock);
+    void *p = pmem.page_alloc(pmem.struct_ptr);
+    release_spinlock(&pmem.lock);
     return p;
 }
 
-/* Free the physical memory pointed at by v. */
-void kfree(void *va) {
-    acquire_spinlock(&memmory_manager_lock);
-    mmt.page_free(mmt.memmory_manager, va);
-    release_spinlock(&memmory_manager_lock);
+/* Free the physical memory pointed at by page_address. */
+NORETURN void kfree(void *page_address) {
+    acquire_spinlock(&pmem.lock);
+    pmem.page_free(pmem.struct_ptr, page_address);
+    release_spinlock(&pmem.lock);
 }
