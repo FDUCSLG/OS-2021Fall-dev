@@ -1,5 +1,17 @@
 # Lab2 内存管理
 
+## 代码仓库
+
+本实验的代码在 `lab2` 分支中。做完 lab1 后，请在 `lab1` 分支上做一次 Commit，然后加入 `lab2` 分支的代码：
+
+```sh
+# After commit
+git checkout lab2
+
+git merge lab1
+# If merge conflicts exist, You should handle them and then commit
+```
+
 ## 实验内容简介
 
 ### 实验目标
@@ -120,6 +132,75 @@ NORETURN static void freelist_free(void *freelist_ptr, void *page_address);
 
 拿到 level-0 页表后，CPU 会依次以 va[47:39] , va[38:39] , va[29:21] , va[20:12] 为索引来获取下一级页表信息（页表地址、访问权限）。
 
+```verilog
+// Simplified code of ARMv8 MMU
+module MMU #(
+	parameter paddr_t = uint64_t, // physical address
+    parameter vaddr_t = uint64_t  // virtual address
+)(
+    input req_valid,
+    input vaddr_t va,	 			// Software memory requests must use va
+    output paddr_t pa,				// Give pa
+    output paddr_t dreq_addr,		// Hardware uses pa to get next-level
+    input uint64_t dresp_data,		// The pa of next-leval pgtable is {dresp_data[63:12], 12'b0}
+    input paddr_t ttbr0, ttbr1		// Translation table base registers store pa
+);
+    localparam state_t = enum {
+        INIT,
+        LOAD_L1,
+        LOAD_L2,
+        LOAD_L3
+    };
+    state_t state;
+    
+    always_comb begin
+        unique case (state) begin
+            INIT: begin
+                if (req_valid) begin
+                    if (cache_hit(va)) begin // this cache would be TLB
+                        pa = cache_read(va);
+                    end else begin
+                        state = LOAD_L1;
+                        ttbr = select(va, ttbr0, ttbr1); // based on va[63:48]
+                        dreq_addr = ttbr | L1_INDEX(va);
+                    end
+                end
+            end
+            LOAD_L1: begin
+                if (IS_BLOCK(dresp_data)) begin
+                    state = INIT;
+                    pa = L1_ALIGN(dresp_data) | L1_OFFSET(va);
+                end else begin
+                    state = LOAD_L2;
+                    dreq_addr = (PAGE_ALIGN(dresp_data)) | L2_INDEX(va);
+                end
+            end
+            // LOAD_L2 and LOAD_L3 are similar to LOAD_L1
+            LOAD_L2: begin
+                if (IS_BLOCK(dresp_data)) begin
+                    state = INIT;
+                    pa = L2_ALIGN(dresp_data) | L2_OFFSET(va);
+                end else begin
+                    state = LOAD_L3;
+                    dreq_addr = (PAGE_ALIGN(dresp_data)) | L3_INDEX(va);
+                end
+            end
+            LOAD_L3: begin
+                if (IS_PAGE(dresp_data)) begin
+                    state = INIT;
+                    pa = L3_ALIGN(dresp_data) | L3_OFFSET(va);
+                end else begin
+
+                end
+            end
+        end
+    end
+    
+endmodule
+```
+
+
+
 每级页表中，页表项 entry 后 12 位用于权限控制，前若干位用来指示页表项所指页表的物理地址。
 在 level-1、level-2 中 entry[1] 可用于指示当前项的属性（为 0 时 block、为 1 时 table）(ref:D4.3.1)，在 level-3 中 entry[1] 只能为 1，指示当前项中包含物理地址 (ref:D4.3.2)，entry[0] 用于指示当前项是否有为空（可用于映射物理地址）(ref:D4.3.2)，entry[7:6] 用于权限管理 (ref:D4.4.4)。
 
@@ -198,6 +279,10 @@ static int my_uvm_map(PTEntriesPtr pgdir, void *va, size_t sz, uint64_t pa);
 
 ## Exercise
 
+截止时间：`2021-10-8 15:24:59` 。
+
+提交方式：将实验报告提交到 `elearning` 上，文件名：`学号-lab2.pdf` 。
+
 ### 物理内存管理
 
 完成物理内存管理所对应的以下几个函数（或者自己改写相关代码使得能够实现对应功能）。
@@ -219,7 +304,21 @@ NORETURN static void my_vm_free(PTEntriesPtr pgdir);
 static int my_uvm_map(PTEntriesPtr pgdir, void *va, size_t sz, uint64_t pa);
 ```
 
+### 测试
 
+`src/core/virtual_memory.c` 中有一个简单的测试。大家可以自行添加测试。
+
+后续，我们会用更完备的测试来检查大家是否正确地实现了上述功能。测试思路为：
+
+```algorithm
+1. Allocate thousands of pages `v[N]`, `N is about 1e6`.
+2. Map those pages (`v[i]` -> `p[i]`).
+3. For each page, call pgdir_walk(). Assert(`p[i]` == pgdir_walk(`v[i]`)).
+4. Free some pages.
+5. For each page, call pgdir_walk(). For pages freed, the return value should be 0. Otherwise, the same as 3.
+6. Free the remaining pages.
+7. For each page, call pgdir_walk(). Assert (0 == pgdirwalk(`v[i]`))
+```
 
 ## 可能会用到的宏或者函数
 
