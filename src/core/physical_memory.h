@@ -6,7 +6,6 @@
 #include <common/spinlock.h>
 
 typedef struct {
-    SpinLock lock;
     void *struct_ptr;
     void (*page_init)(void *datastructure_ptr, void *start, void *end);
     void *(*page_alloc)(void *datastructure_ptr);

@@ -20,12 +20,7 @@ static void freelist_free(void *datastructure_ptr, void *page_address);
  */
 static void *freelist_alloc(void *datastructure_ptr) {
     FreeListNode *f = (FreeListNode *) datastructure_ptr; 
-    void *p = f -> next;  
-    if (p) {
-        void *np = ((FreeListNode *)p) -> next;
-        f->next = np;
-    }
-    return p;
+    // Todo
 }
 
 /*
@@ -33,10 +28,7 @@ static void *freelist_alloc(void *datastructure_ptr) {
  */
 static void freelist_free(void *datastructure_ptr, void *page_address) {
     FreeListNode* f = (FreeListNode*) datastructure_ptr; 
-    if (page_address) {
-        ((FreeListNode *)page_address) -> next = f -> next;
-        f -> next = page_address;
-    }
+    // Todo
 }
 
 /*
@@ -45,9 +37,7 @@ static void freelist_free(void *datastructure_ptr, void *page_address) {
 
 static void freelist_init(void *datastructure_ptr, void *start, void *end) {
     FreeListNode* f = (FreeListNode*) datastructure_ptr; 
-    for (void *p = start; p + PAGE_SIZE <= end; p += PAGE_SIZE) {
-        freelist_free(f, p);
-    }
+    // Todo
 }
 
 
@@ -83,15 +73,11 @@ void free_range(void *start, void *end) {
  * Corrupt the page by filling non-zero value in it for debugging.
  */
 void *kalloc(void) {
-    acquire_spinlock(&pmem.lock);
     void *p = pmem.page_alloc(pmem.struct_ptr);
-    release_spinlock(&pmem.lock);
     return p;
 }
 
 /* Free the physical memory pointed at by page_address. */
 void kfree(void *page_address) {
-    acquire_spinlock(&pmem.lock);
     pmem.page_free(pmem.struct_ptr, page_address);
-    release_spinlock(&pmem.lock);
 }
