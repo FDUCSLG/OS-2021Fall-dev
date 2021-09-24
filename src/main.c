@@ -1,10 +1,8 @@
 #include <aarch64/intrinsic.h>
 #include <core/console.h>
-#include <core/memory_manage.h>
+#include <core/physical_memory.h>
 #include <core/virtual_memory.h>
 
-MemmoryManagerTable *mmt_ptr;
-VirtualMemoryTable *vmt_ptr;
 
 NORETURN void main() {
     init_char_device();
