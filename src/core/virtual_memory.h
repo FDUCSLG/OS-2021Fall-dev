@@ -33,6 +33,7 @@ int uvm_dealloc(PTEntriesPtr, size_t, size_t, size_t);
 void uvm_switch(PTEntriesPtr);
 int copyout(PTEntriesPtr, void *, void *, size_t);
 void virtual_memory_init(VirtualMemoryTable *);
-void vm_test(VirtualMemoryTable *);
+void init_virtual_memory();
+void vm_test();
 
 #endif

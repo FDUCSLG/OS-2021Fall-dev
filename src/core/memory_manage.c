@@ -83,8 +83,10 @@ void free_range(void *start, void *end) {
  * Corrupt the page by filling non-zero value in it for debugging.
  */
 void *kalloc() {
+    
     acquire_spinlock(&memmory_manager_lock);
     void *p = mmt.page_alloc(mmt.memmory_manager);
+    
     release_spinlock(&memmory_manager_lock);
     return p;
 }

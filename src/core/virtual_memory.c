@@ -15,6 +15,7 @@ PTEntriesPtr pgdir_init() {
 }
 
 PTEntriesPtr pgdir_walk(PTEntriesPtr pgdir, void *vak, int alloc) {
+    
     return vmt.pgdir_walk(pgdir, vak, alloc);
 }
 
@@ -172,6 +173,7 @@ void my_vm_free(PTEntriesPtr pgdir) {
  */
 
 int my_uvm_map(PTEntriesPtr pgdir, void *va, size_t sz, uint64_t pa) {
+    
     void *ptr = ROUNDDOWN(va,PAGE_SIZE);
     void *end = (void *)((uint64_t)va + sz);
     pa = ROUNDDOWN(pa,PAGE_SIZE);
@@ -308,13 +310,21 @@ void virtual_memory_init(VirtualMemoryTable *vmt_ptr) {
     vmt_ptr->copyout = my_copyout;
 }
 
+void init_virtual_memory() {
+    virtual_memory_init(&vmt);
+}
+
 void
-vm_test(VirtualMemoryTable *vmt_ptr)
+vm_test()
 {
+    printf("In test");
     *((int64_t*)P2K(0)) = 0xac;
     char* p = kalloc();
+    
     memset(p, 0, PAGE_SIZE);
-    vmt_ptr->uvm_map((uint64_t*)p, (void*)0x1000, PAGE_SIZE, 0);
+    
+    vmt.uvm_map((uint64_t*)p, (void*)0x1000, PAGE_SIZE, 0);
+    
     asm volatile("msr ttbr0_el1, %[x]": : [x] "r"(K2P(p)));
 
     if (*((int64_t*)0x1000) == 0xac) {
