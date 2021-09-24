@@ -1,5 +1,4 @@
 #include <aarch64/intrinsic.h>
-#include <aarch64/mmu.h>
 #include <common/string.h>
 #include <core/virtual_memory.h>
 #include <core/memory_manage.h>
@@ -307,4 +306,23 @@ void virtual_memory_init(VirtualMemoryTable *vmt_ptr) {
     vmt_ptr->uvm_alloc = my_uvm_alloc;
     vmt_ptr->uvm_dealloc = my_uvm_dealloc;
     vmt_ptr->copyout = my_copyout;
+}
+
+void
+vm_test(VirtualMemoryTable *vmt_ptr)
+{
+    *((int64_t*)P2K(0)) = 0xac;
+    char* p = kalloc();
+    memset(p, 0, PAGE_SIZE);
+    vmt_ptr->uvm_map((uint64_t*)p, (void*)0x1000, PAGE_SIZE, 0);
+    asm volatile("msr ttbr0_el1, %[x]": : [x] "r"(K2P(p)));
+
+    if (*((int64_t*)0x1000) == 0xac) {
+        printf("Test_Map_Region Pass!\n");
+    }
+    else {
+        printf("Test_Map_Region Fail!\n");
+    }
+
+
 }

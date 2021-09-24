@@ -1,3 +1,4 @@
+#include <aarch64/mmu.h>
 #pragma once
 
 #ifndef _CORE_VIRTUAL_MEMORY_
@@ -32,5 +33,6 @@ int uvm_dealloc(PTEntriesPtr, size_t, size_t, size_t);
 void uvm_switch(PTEntriesPtr);
 int copyout(PTEntriesPtr, void *, void *, size_t);
 void virtual_memory_init(VirtualMemoryTable *);
+void vm_test(VirtualMemoryTable *);
 
 #endif
