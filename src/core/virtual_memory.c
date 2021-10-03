@@ -2,7 +2,7 @@
 #include <common/string.h>
 #include <core/virtual_memory.h>
 #include <core/memory_manage.h>
-#include <common/types.h>
+#include <common/defines.h>
 #include <core/console.h>
 
 /* For simplicity, we only support 4k pages in user pgdir. */
@@ -27,15 +27,15 @@ void vm_free(PTEntriesPtr pgdir) {
     vmt.vm_free(pgdir);
 }
 
-int uvm_map(PTEntriesPtr pgdir, void *va, size_t sz, uint64_t pa) {
+int uvm_map(PTEntriesPtr pgdir, void *va, usize sz, u64 pa) {
     return vmt.uvm_map(pgdir, va, sz, pa);
 }
 
-int uvm_alloc(PTEntriesPtr pgdir, size_t base, size_t stksz, size_t oldsz, size_t newsz) {
+int uvm_alloc(PTEntriesPtr pgdir, usize base, usize stksz, usize oldsz, usize newsz) {
     return vmt.uvm_alloc(pgdir, base, stksz, oldsz, newsz);
 }
 
-int uvm_dealloc(PTEntriesPtr pgdir, size_t base, size_t oldsz, size_t newsz) {
+int uvm_dealloc(PTEntriesPtr pgdir, usize base, usize oldsz, usize newsz) {
     return vmt.uvm_dealloc(pgdir, base, oldsz, newsz);
 }
 
@@ -44,7 +44,7 @@ void uvm_switch(PTEntriesPtr pgdir) {
     arch_set_ttbr0(K2P(pgdir));
 }
 
-int copyout(PTEntriesPtr pgdir, void *va, void *p, size_t len) {
+int copyout(PTEntriesPtr pgdir, void *va, void *p, usize len) {
     return vmt.copyout(pgdir, va, p, len);
 }
 
@@ -72,7 +72,7 @@ static PTEntriesPtr my_pgdir_init() {
 
 static PTEntriesPtr my_pgdir_walk(PTEntriesPtr pgdir, void *vak, int alloc) {
     PTEntriesPtr pagetable = pgdir;
-    uint64_t virtual_address_tag = ((uint64_t) vak) >> 12;    
+    u64 virtual_address_tag = ((u64) vak) >> 12;    
     for (int i = 0; i < 3; i++) {
         int page_index = (int) (virtual_address_tag >> ((3 - i) * 9)) & 0x1FF;
         if (!(pagetable[page_index] & PTE_VALID)) {
@@ -172,10 +172,10 @@ void my_vm_free(PTEntriesPtr pgdir) {
  * Return -1 if failed else 0.
  */
 
-int my_uvm_map(PTEntriesPtr pgdir, void *va, size_t sz, uint64_t pa) {
+int my_uvm_map(PTEntriesPtr pgdir, void *va, usize sz, u64 pa) {
     
     void *ptr = ROUNDDOWN(va,PAGE_SIZE);
-    void *end = (void *)((uint64_t)va + sz);
+    void *end = (void *)((u64)va + sz);
     pa = ROUNDDOWN(pa,PAGE_SIZE);
     for (; ptr < end; ptr += PAGE_SIZE, pa += PAGE_SIZE) {
         PTEntriesPtr page_content_ptr = pgdir_walk(pgdir, ptr, 1);
@@ -197,21 +197,21 @@ int my_uvm_map(PTEntriesPtr pgdir, void *va, size_t sz, uint64_t pa) {
  * Returns new size or 0 on error.
  */
 
-int my_uvm_alloc(PTEntriesPtr pgdir, size_t base, size_t stksz, size_t oldsz, size_t newsz) {
+int my_uvm_alloc(PTEntriesPtr pgdir, usize base, usize stksz, usize oldsz, usize newsz) {
     // assert(stksz % PAGE_SIZE == 0);
     if (!(stksz < USERTOP && base <= oldsz && oldsz <= newsz && newsz < USERTOP - stksz)) {
         PANIC("my_uvm_alloc: invalid arguments.");
         return 0;
     }
 
-    for (size_t a = ROUNDUP(oldsz,PAGE_SIZE); a < newsz; a += PAGE_SIZE) {
+    for (usize a = ROUNDUP(oldsz,PAGE_SIZE); a < newsz; a += PAGE_SIZE) {
         void *page = kalloc();
         if (!page) {
             printf("my_uvm_alloc: kalloc failed.");
             uvm_dealloc(pgdir, base, a-PAGE_SIZE, oldsz);
             return 0;
         }
-        if (uvm_map(pgdir, (void *)a, PAGE_SIZE, K2P((uint64_t) page)) < 0) {
+        if (uvm_map(pgdir, (void *)a, PAGE_SIZE, K2P((u64) page)) < 0) {
             printf("my_uvm_alloc: uvm_map failed.");
             kfree(page);
             uvm_dealloc(pgdir, base, a-PAGE_SIZE, oldsz);
@@ -230,14 +230,14 @@ int my_uvm_alloc(PTEntriesPtr pgdir, size_t base, size_t stksz, size_t oldsz, si
  * process size.  Returns the new process size.
  */
 
-int my_uvm_dealloc(PTEntriesPtr pgdir, size_t base, size_t oldsz, size_t newsz) {
+int my_uvm_dealloc(PTEntriesPtr pgdir, usize base, usize oldsz, usize newsz) {
     if (newsz >= oldsz || newsz < base)
         return oldsz;
 
-    for (size_t a = ROUNDUP(newsz, PAGE_SIZE); a < oldsz; a += PAGE_SIZE) {
+    for (usize a = ROUNDUP(newsz, PAGE_SIZE); a < oldsz; a += PAGE_SIZE) {
         PTEntriesPtr page_content_ptr = pgdir_walk(pgdir, (void *)a, 0);
         if (page_content_ptr && (*page_content_ptr & PTE_VALID)) {
-            uint64_t pa = PTE_ADDRESS(*page_content_ptr);
+            u64 pa = PTE_ADDRESS(*page_content_ptr);
             // if (!pa) {
             //     PANIC("GG");
             // }
@@ -259,14 +259,14 @@ int my_uvm_dealloc(PTEntriesPtr pgdir, size_t base, size_t oldsz, size_t newsz) 
  * Useful when pgdir is not the current page table.
  */
 
-int my_copyout(PTEntriesPtr pgdir, void *va, void *p, size_t len) {
+int my_copyout(PTEntriesPtr pgdir, void *va, void *p, usize len) {
     void *page;
-    size_t n, page_offset;
+    usize n, page_offset;
     PTEntriesPtr page_content_ptr;
-    if ((size_t)va + len > USERTOP)
+    if ((usize)va + len > USERTOP)
         return -1;
     for (; len; len -= n, va += n) {
-        page_offset = (size_t)va % PAGE_SIZE;
+        page_offset = (usize)va % PAGE_SIZE;
         page_content_ptr = pgdir_walk(pgdir, va, 1);
         if (!page_content_ptr) {
             printf("my_copyout: pgdir_walk failed");
@@ -318,16 +318,16 @@ void
 vm_test()
 {
     printf("In test");
-    *((int64_t*)P2K(0)) = 0xac;
+    *((i64*)P2K(0)) = 0xac;
     char* p = kalloc();
     
     memset(p, 0, PAGE_SIZE);
     
-    vmt.uvm_map((uint64_t*)p, (void*)0x1000, PAGE_SIZE, 0);
+    vmt.uvm_map((u64*)p, (void*)0x1000, PAGE_SIZE, 0);
     
     asm volatile("msr ttbr0_el1, %[x]": : [x] "r"(K2P(p)));
 
-    if (*((int64_t*)0x1000) == 0xac) {
+    if (*((i64*)0x1000) == 0xac) {
         printf("Test_Map_Region Pass!\n");
     }
     else {

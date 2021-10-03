@@ -1,7 +1,7 @@
 #include <aarch64/mmu.h>
 #include <common/spinlock.h>
 #include <core/memory_manage.h>
-#include <common/types.h>
+#include <common/defines.h>
 #include <core/console.h>
 
 extern char end[];
@@ -60,8 +60,8 @@ static void init_memmory_manager_table(MemmoryManagerTable *mmt_ptr) {
 
 void init_memory_manager() {
     // HACK Raspberry pi 4b.
-    // size_t phystop = MIN(0x3F000000, mbox_get_arm_memory());
-    size_t phystop = 0x3F000000;
+    // usize phystop = MIN(0x3F000000, mbox_get_arm_memory());
+    usize phystop = 0x3F000000;
     
     // notice here for roundup
     void *ROUNDUP_end = ROUNDUP((void *)end, PAGE_SIZE);

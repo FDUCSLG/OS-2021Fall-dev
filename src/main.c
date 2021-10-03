@@ -61,5 +61,7 @@ NORETURN void main() {
         delay_us(10000);
 
     // PANIC("TODO: add %s. CPUID = %zu", "scheduler", cpuid());
+    init_memory_manager();
+    init_virtual_memory();
     no_return();
 }
