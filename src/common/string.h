@@ -5,7 +5,7 @@
 void *memset(void *s, int c, usize n);
 void *memcpy(void *restrict dest, const void *restrict src, usize n);
 int memcmp(const void *s1, const void *s2, usize n);
-
+void *memmove(void *dst, const void *src, usize n);
 // note: for string functions, please specify `n` explicitly.
 
 // strncpy will `dest` with zeroes if the length of `src` is less than `n`.

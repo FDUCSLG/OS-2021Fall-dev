@@ -4,6 +4,8 @@
 #include <core/trap.h>
 #include <driver/clock.h>
 #include <driver/interrupt.h>
+#include <core/memory_manage.h>
+#include <core/virtual_memory.h>
 
 static SpinLock init_lock = {.locked = 0};
 
@@ -41,27 +43,28 @@ NORETURN void main() {
     wait_spinlock(&init_lock);
     init_system_per_core();
 
-    if (cpuid() == 0)
-        puts("Hello, world!");
-    else if (cpuid() == 1)
-        puts("Hello, rpi-os!");
-    else if (cpuid() == 2)
-        printf("Hello, printf: %? %% %s %s %u %llu %d %lld %x %llx %p %c\n",
-               NULL,
-               "(aha)",
-               0u,
-               1llu,
-               -2,
-               -3ll,
-               4u,
-               5llu,
-               printf,
-               '!');
-    else
-        delay_us(10000);
+    // if (cpuid() == 0)
+    //     puts("Hello, world!");
+    // else if (cpuid() == 1)
+    //     puts("Hello, rpi-os!");
+    // else if (cpuid() == 2)
+    //     printf("Hello, printf: %? %% %s %s %u %llu %d %lld %x %llx %p %c\n",
+    //            NULL,
+    //            "(aha)",
+    //            0u,
+    //            1llu,
+    //            -2,
+    //            -3ll,
+    //            4u,
+    //            5llu,
+    //            printf,
+    //            '!');
+    // else
+    //     delay_us(10000);
 
     // PANIC("TODO: add %s. CPUID = %zu", "scheduler", cpuid());
     init_memory_manager();
     init_virtual_memory();
-    no_return();
+    vm_test();
+    // no_return();
 }
