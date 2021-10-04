@@ -68,5 +68,8 @@ NO_RETURN void main() {
         delay_us(10000);
 
     // PANIC("TODO: add %s. CPUID = %zu", "scheduler", cpuid());
-    no_return();
+
+    while (true) {
+        arch_wfi();
+    }
 }
