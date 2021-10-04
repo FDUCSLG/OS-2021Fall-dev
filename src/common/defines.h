@@ -26,6 +26,7 @@ typedef u64 usize;
 
 #define NO_RETURN _Noreturn
 
+// NOTE: no_return will disable traps.
 NO_INLINE NO_RETURN void no_return();
 
 #define MIN(a, b)                                                                                  \
