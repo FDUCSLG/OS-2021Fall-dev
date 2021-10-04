@@ -20,6 +20,35 @@ typedef u64 usize;
 // this is compatible with C++: <https://en.cppreference.com/w/c/types/NULL>.
 #define NULL 0
 
-#define NORETURN _Noreturn
+#define INLINE        inline __attribute__((unused))
+#define ALWAYS_INLINE inline __attribute__((unused, always_inline))
+#define NO_INLINE     __attribute__((noinline))
 
-NORETURN void no_return();
+#define NO_RETURN _Noreturn
+
+// NOTE: no_return will disable traps.
+NO_INLINE NO_RETURN void no_return();
+
+#define MIN(a, b)                                                                                  \
+    ({                                                                                             \
+        typeof(a) _a = (a);                                                                        \
+        typeof(b) _b = (b);                                                                        \
+        _a <= _b ? _a : _b;                                                                        \
+    })
+
+#define MAX(a, b)                                                                                  \
+    ({                                                                                             \
+        typeof(a) _a = (a);                                                                        \
+        typeof(b) _b = (b);                                                                        \
+        _a >= _b ? _a : _b;                                                                        \
+    })
+
+// return the largest c that c is a multiple of b and c <= a.
+static INLINE u64 round_down(u64 a, u64 b) {
+    return a - a % b;
+}
+
+// return the smallest c that c is a multiple of b and c >= a.
+static INLINE u64 round_up(u64 a, u64 b) {
+    return round_down(a + b - 1, b);
+}

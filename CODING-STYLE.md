@@ -51,7 +51,7 @@ typedef HelloWorld AnotherOne;
 
 ```c
 static bool _hidden;
-static inline _helper_function();
+static INLINE _helper_function();
 ```
 
 * 没有用到的函数参数，请使用 `(void)arg_name`。
@@ -119,19 +119,25 @@ typedef struct {
 typedef int (*VoidFunc)(void);
 ```
 
-* 所有 `inline` 函数使用 `static inline`。
+* 所有 `inline` 函数请使用 `static INLINE` 或者 `static ALWAYS_INLINE`。
 
 ```c
 inline i64 add(i64 a, i64 b);         // NO
-static inline i64 add(i64 a, i64 b);  // YES
+static INLINE i64 add(i64 a, i64 b);  // YES
 ```
 
-* 不会返回的函数（如 `panic`、`fork`），请在前面标注 `NORETURN`。
+* 如果希望函数不被内联优化，请使用 `NO_INLINE`。
 
 ```c
-NORETURN void panic();
+NO_INLINE i64 complicated_add(i64 a, i64 b);
+```
 
-NORETURN void panic() {
+* 不会返回的函数（如 `panic`、`fork`），请在前面标注 `NO_RETURN`。
+
+```c
+NO_RETURN void panic();
+
+NO_RETURN void panic() {
     while (1) {}
 }
 ```

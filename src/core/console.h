@@ -17,7 +17,7 @@ void puts(const char *str);
 void vprintf(const char *fmt, va_list arg);
 void printf(const char *fmt, ...);
 
-NORETURN void _panic(const char *file, usize line, const char *fmt, ...);
+NO_RETURN void _panic(const char *file, usize line, const char *fmt, ...);
 
 #define PANIC(...) _panic(__FILE__, __LINE__, __VA_ARGS__)
 
