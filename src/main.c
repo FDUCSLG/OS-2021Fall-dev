@@ -13,7 +13,7 @@ void init_system_once() {
     if (!try_acquire_spinlock(&init_lock))
         return;
 
-    // initialize BSS sections.
+    // clear BSS section.
     extern char edata[], end[];
     memset(edata, 0, end - edata);
 
@@ -21,15 +21,20 @@ void init_system_once() {
     init_char_device();
     init_console();
 
+    init_memory_manager();
+    init_virtual_memory();
+
+    vm_test();
+
     release_spinlock(&init_lock);
 }
 
 void hello() {
-    reset_clock(1000);
     printf("CPU %d: HELLO!\n", cpuid());
+    reset_clock(1000);
 }
 
-void init_system_per_core() {
+void init_system_per_cpu() {
     init_clock();
     set_clock_handler(hello);
     init_trap();
@@ -37,34 +42,31 @@ void init_system_per_core() {
     arch_enable_trap();
 }
 
-NORETURN void main() {
+NO_RETURN void main() {
     init_system_once();
 
     wait_spinlock(&init_lock);
-    init_system_per_core();
+    init_system_per_cpu();
 
-    // if (cpuid() == 0)
-    //     puts("Hello, world!");
-    // else if (cpuid() == 1)
-    //     puts("Hello, rpi-os!");
-    // else if (cpuid() == 2)
-    //     printf("Hello, printf: %? %% %s %s %u %llu %d %lld %x %llx %p %c\n",
-    //            NULL,
-    //            "(aha)",
-    //            0u,
-    //            1llu,
-    //            -2,
-    //            -3ll,
-    //            4u,
-    //            5llu,
-    //            printf,
-    //            '!');
-    // else
-    //     delay_us(10000);
+    if (cpuid() == 0)
+        puts("Hello, world!");
+    else if (cpuid() == 1)
+        puts("Hello, rpi-os!");
+    else if (cpuid() == 2)
+        printf("Hello, printf: %? %% %s %s %u %llu %d %lld %x %llx %p %c\n",
+               NULL,
+               "(aha)",
+               0u,
+               1llu,
+               -2,
+               -3ll,
+               4u,
+               5llu,
+               printf,
+               '!');
+    else
+        delay_us(10000);
 
     // PANIC("TODO: add %s. CPUID = %zu", "scheduler", cpuid());
-    init_memory_manager();
-    init_virtual_memory();
-    vm_test();
-    // no_return();
+    no_return();
 }

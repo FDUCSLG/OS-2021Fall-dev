@@ -1,23 +1,18 @@
 #pragma once
 
-#ifndef _CORE_MEMORY_MANAGE_
-#define _CORE_MEMORY_MANAGE_
-
 typedef struct {
     void *memmory_manager;
-    void (*page_init)(void *, void*, void*);
-    void *(*page_alloc)(void *);
-    void (*page_free)(void *, void *);
+    void (*page_init)(void *this, void *start, void *end);
+    void *(*page_alloc)(void *this);
+    void (*page_free)(void *this, void *v);
 } MemmoryManagerTable;
 
-typedef struct  {
+typedef struct {
     void *next;
     void *start, *end;
 } FreeList;
 
 void init_memory_manager();
-void free_range(void *, void *);
+void free_range(void *start, void *end);
 void *kalloc();
-void kfree(void *);
-
-#endif
+void kfree(void *va);

@@ -13,4 +13,4 @@
 
 void init_trap();
 void trap_global_handler(Trapframe *frame);
-NORETURN void trap_error_handler(u64 type);
+NO_RETURN void trap_error_handler(u64 type);

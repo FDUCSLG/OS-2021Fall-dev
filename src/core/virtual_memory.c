@@ -1,9 +1,9 @@
 #include <aarch64/intrinsic.h>
-#include <common/string.h>
-#include <core/virtual_memory.h>
-#include <core/memory_manage.h>
 #include <common/defines.h>
+#include <common/string.h>
 #include <core/console.h>
+#include <core/memory_manage.h>
+#include <core/virtual_memory.h>
 
 /* For simplicity, we only support 4k pages in user pgdir. */
 
@@ -15,7 +15,7 @@ PTEntriesPtr pgdir_init() {
 }
 
 PTEntriesPtr pgdir_walk(PTEntriesPtr pgdir, void *vak, int alloc) {
-    
+
     return vmt.pgdir_walk(pgdir, vak, alloc);
 }
 
@@ -48,7 +48,6 @@ int copyout(PTEntriesPtr pgdir, void *va, void *p, usize len) {
     return vmt.copyout(pgdir, va, p, len);
 }
 
-
 /*
  * generate a empty page as page directory
  */
@@ -63,7 +62,6 @@ static PTEntriesPtr my_pgdir_init() {
     return pgdir;
 }
 
-
 /*
  * return the address of the pte in user page table
  * pgdir that corresponds to virtual address va.
@@ -72,9 +70,9 @@ static PTEntriesPtr my_pgdir_init() {
 
 static PTEntriesPtr my_pgdir_walk(PTEntriesPtr pgdir, void *vak, int alloc) {
     PTEntriesPtr pagetable = pgdir;
-    u64 virtual_address_tag = ((u64) vak) >> 12;    
+    u64 virtual_address_tag = ((u64)vak) >> 12;
     for (int i = 0; i < 3; i++) {
-        int page_index = (int) (virtual_address_tag >> ((3 - i) * 9)) & 0x1FF;
+        int page_index = (int)(virtual_address_tag >> ((3 - i) * 9)) & 0x1FF;
         if (!(pagetable[page_index] & PTE_VALID)) {
             void *p;
             /* FIXME Free allocated pages and restore modified pgt */
@@ -110,8 +108,7 @@ static PTEntriesPtr recur_uvm_copy(PTEntriesPtr pgdir, int level) {
                 newpgdir[i] = K2P(page_copy) | PTE_FLAGS(pgdir[i]);
             }
         }
-    } 
-    else {
+    } else {
         for (int i = 0; i < 512; i++) {
             if (pgdir[i] & PTE_VALID) {
                 // assert(pgdir[i] & PTE_TABLE);
@@ -138,7 +135,6 @@ static PTEntriesPtr my_uvm_copy(PTEntriesPtr pgdir) {
 
 /* Free a user page table and all the physical memory pages. */
 
-
 void recur_vm_free(PTEntriesPtr pgdir, int level) {
     if (level < 3) {
         for (int i = 0; i < 512; i++) {
@@ -149,8 +145,7 @@ void recur_vm_free(PTEntriesPtr pgdir, int level) {
             }
         }
         kfree(pgdir);
-    } 
-    else {
+    } else {
         for (int i = 0; i < 512; i++) {
             if (pgdir[i] & PTE_VALID) {
                 PTEntriesPtr page_content_ptr = (PTEntriesPtr)(P2K(PTE_ADDRESS(pgdir[i])));
@@ -173,10 +168,10 @@ void my_vm_free(PTEntriesPtr pgdir) {
  */
 
 int my_uvm_map(PTEntriesPtr pgdir, void *va, usize sz, u64 pa) {
-    
-    void *ptr = ROUNDDOWN(va,PAGE_SIZE);
+
+    void *ptr = (void *)round_down((u64)va, PAGE_SIZE);
     void *end = (void *)((u64)va + sz);
-    pa = ROUNDDOWN(pa,PAGE_SIZE);
+    pa = round_down((u64)pa, PAGE_SIZE);
     for (; ptr < end; ptr += PAGE_SIZE, pa += PAGE_SIZE) {
         PTEntriesPtr page_content_ptr = pgdir_walk(pgdir, ptr, 1);
         if (!page_content_ptr) {
@@ -199,29 +194,28 @@ int my_uvm_map(PTEntriesPtr pgdir, void *va, usize sz, u64 pa) {
 
 int my_uvm_alloc(PTEntriesPtr pgdir, usize base, usize stksz, usize oldsz, usize newsz) {
     // assert(stksz % PAGE_SIZE == 0);
-    if (!(stksz < USERTOP && base <= oldsz && oldsz <= newsz && newsz < USERTOP - stksz)) {
+    if (!(stksz < USPACE_TOP && base <= oldsz && oldsz <= newsz && newsz < USPACE_TOP - stksz)) {
         PANIC("my_uvm_alloc: invalid arguments.");
         return 0;
     }
 
-    for (usize a = ROUNDUP(oldsz,PAGE_SIZE); a < newsz; a += PAGE_SIZE) {
+    for (usize a = round_up(oldsz, PAGE_SIZE); a < newsz; a += PAGE_SIZE) {
         void *page = kalloc();
         if (!page) {
             printf("my_uvm_alloc: kalloc failed.");
-            uvm_dealloc(pgdir, base, a-PAGE_SIZE, oldsz);
+            uvm_dealloc(pgdir, base, a - PAGE_SIZE, oldsz);
             return 0;
         }
-        if (uvm_map(pgdir, (void *)a, PAGE_SIZE, K2P((u64) page)) < 0) {
+        if (uvm_map(pgdir, (void *)a, PAGE_SIZE, K2P((u64)page)) < 0) {
             printf("my_uvm_alloc: uvm_map failed.");
             kfree(page);
-            uvm_dealloc(pgdir, base, a-PAGE_SIZE, oldsz);
+            uvm_dealloc(pgdir, base, a - PAGE_SIZE, oldsz);
             return 0;
         }
     }
 
     return newsz;
 }
-
 
 /*
  * Deallocate user pages to bring the process size from oldsz to
@@ -234,7 +228,7 @@ int my_uvm_dealloc(PTEntriesPtr pgdir, usize base, usize oldsz, usize newsz) {
     if (newsz >= oldsz || newsz < base)
         return oldsz;
 
-    for (usize a = ROUNDUP(newsz, PAGE_SIZE); a < oldsz; a += PAGE_SIZE) {
+    for (usize a = round_up(newsz, PAGE_SIZE); a < oldsz; a += PAGE_SIZE) {
         PTEntriesPtr page_content_ptr = pgdir_walk(pgdir, (void *)a, 0);
         if (page_content_ptr && (*page_content_ptr & PTE_VALID)) {
             u64 pa = PTE_ADDRESS(*page_content_ptr);
@@ -252,7 +246,6 @@ int my_uvm_dealloc(PTEntriesPtr pgdir, usize base, usize oldsz, usize newsz) {
     return newsz;
 }
 
-
 /*
  * Copy len bytes from p to user address va in page table pgdir.
  * Allocate physical pages if required.
@@ -263,7 +256,7 @@ int my_copyout(PTEntriesPtr pgdir, void *va, void *p, usize len) {
     void *page;
     usize n, page_offset;
     PTEntriesPtr page_content_ptr;
-    if ((usize)va + len > USERTOP)
+    if ((usize)va + len > USPACE_TOP)
         return -1;
     for (; len; len -= n, va += n) {
         page_offset = (usize)va % PAGE_SIZE;
@@ -274,8 +267,7 @@ int my_copyout(PTEntriesPtr pgdir, void *va, void *p, usize len) {
         }
         if (*page_content_ptr & PTE_VALID) {
             page = (void *)(P2K(PTE_ADDRESS(*page_content_ptr)));
-        } 
-        else {
+        } else {
             page = kalloc();
             if (!page) {
                 printf("my_copyout: kalloc failed.");
@@ -298,7 +290,6 @@ int my_copyout(PTEntriesPtr pgdir, void *va, void *p, usize len) {
     return 0;
 }
 
-
 void virtual_memory_init(VirtualMemoryTable *vmt_ptr) {
     vmt_ptr->pgdir_init = my_pgdir_init;
     vmt_ptr->pgdir_walk = my_pgdir_walk;
@@ -314,25 +305,20 @@ void init_virtual_memory() {
     virtual_memory_init(&vmt);
 }
 
-void
-vm_test()
-{
-    printf("In test");
-    *((i64*)P2K(0)) = 0xac;
-    char* p = kalloc();
-    
+void vm_test() {
+    puts("In test");
+    *((i64 *)P2K(0)) = 0xac;
+    char *p = kalloc();
+
     memset(p, 0, PAGE_SIZE);
-    
-    vmt.uvm_map((u64*)p, (void*)0x1000, PAGE_SIZE, 0);
-    
-    asm volatile("msr ttbr0_el1, %[x]": : [x] "r"(K2P(p)));
 
-    if (*((i64*)0x1000) == 0xac) {
-        printf("Test_Map_Region Pass!\n");
+    vmt.uvm_map((u64 *)p, (void *)0x1000, PAGE_SIZE, 0);
+
+    asm volatile("msr ttbr0_el1, %[x]" : : [x] "r"(K2P(p)));
+
+    if (*((i64 *)0x1000) == 0xac) {
+        puts("Test_Map_Region Pass!");
+    } else {
+        puts("Test_Map_Region Fail!\n");
     }
-    else {
-        printf("Test_Map_Region Fail!\n");
-    }
-
-
 }

@@ -1,8 +1,8 @@
 #include <aarch64/mmu.h>
-#include <common/spinlock.h>
-#include <core/memory_manage.h>
 #include <common/defines.h>
+#include <common/spinlock.h>
 #include <core/console.h>
+#include <core/memory_manage.h>
 
 extern char end[];
 
@@ -12,18 +12,15 @@ SpinLock memmory_manager_lock;
  * Editable, as long as it works as a memory manager.
  */
 FreeList freelist;
-static void init_freelist(void *, void *, void *);
-static void *freelist_alloc(void *);
-static void freelist_free(void *, void *);
 
 /*
  * Allocate one 4096-byte page of physical memory.
  * Returns a pointer that the kernel can use.
  * Returns 0 if the memory cannot be allocated.
  */
-static void *freelist_alloc(void *freelist_ptr) {
-    FreeList* f = (FreeList*) freelist_ptr; 
-    void *p = f->next;  
+static void *freelist_alloc(void *this) {
+    FreeList *f = (FreeList *)this;
+    void *p = f->next;
     if (p)
         f->next = *(void **)p;
     // else
@@ -34,8 +31,8 @@ static void *freelist_alloc(void *freelist_ptr) {
 /*
  * Free the page of physical memory pointed at by v.
  */
-static void freelist_free(void *freelist_ptr, void *v) {
-    FreeList* f = (FreeList*) freelist_ptr; 
+static void freelist_free(void *this, void *v) {
+    FreeList *f = (FreeList *)this;
     *(void **)v = f->next;
     f->next = v;
 }
@@ -44,12 +41,12 @@ static void freelist_free(void *freelist_ptr, void *v) {
  * Record all memory from start to end to freelist as initialization.
  */
 
-static void init_freelist(void *freelist_ptr, void *start, void *end) {
-    FreeList* f = (FreeList*) freelist_ptr; 
-    for (void *p = start; p + PAGE_SIZE <= end; p += PAGE_SIZE)
+static void init_freelist(void *this, void *start, void *end) {
+    FreeList *f = (FreeList *)this;
+    for (void *p = start; p + PAGE_SIZE <= end; p += PAGE_SIZE) {
         freelist_free(f, p);
+    }
 }
-
 
 static void init_memmory_manager_table(MemmoryManagerTable *mmt_ptr) {
     mmt_ptr->memmory_manager = (void *)&freelist;
@@ -62,11 +59,11 @@ void init_memory_manager() {
     // HACK Raspberry pi 4b.
     // usize phystop = MIN(0x3F000000, mbox_get_arm_memory());
     usize phystop = 0x3F000000;
-    
-    // notice here for roundup
-    void *ROUNDUP_end = ROUNDUP((void *)end, PAGE_SIZE);
+
+    // notice here for roundup.
+    void *roundup_end = (void *)round_up((u64)end, PAGE_SIZE);
     init_memmory_manager_table(&mmt);
-    mmt.page_init(mmt.memmory_manager, ROUNDUP_end, (void *)P2K(phystop));
+    mmt.page_init(mmt.memmory_manager, roundup_end, (void *)P2K(phystop));
 }
 
 /*
@@ -83,10 +80,9 @@ void free_range(void *start, void *end) {
  * Corrupt the page by filling non-zero value in it for debugging.
  */
 void *kalloc() {
-    
     acquire_spinlock(&memmory_manager_lock);
     void *p = mmt.page_alloc(mmt.memmory_manager);
-    
+
     release_spinlock(&memmory_manager_lock);
     return p;
 }

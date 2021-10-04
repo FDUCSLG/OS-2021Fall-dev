@@ -17,35 +17,37 @@ typedef unsigned long long u64;
 typedef i64 isize;
 typedef u64 usize;
 
-#define MIN(_a, _b)                 \
-({                                  \
-    typeof(_a) __a = (_a);          \
-    typeof(_b) __b = (_b);          \
-    __a <= __b ? __a : __b;         \
-})
-
-#define MAX(_a, _b)                 \
-({                                  \
-    typeof(_a) __a = (_a);          \
-    typeof(_b) __b = (_b);          \
-    __a >= __b ? __a : __b;         \
-})
-
-#define ROUNDDOWN(a, n)                 \
-({                                      \
-    u64 __a = (u64) (a);      \
-    (typeof(a)) (__a - __a % (n));      \
-})
-
-#define ROUNDUP(a, n)                                           \
-({                                                              \
-    u64 __n = (u64) (n);                              \
-    (typeof(a)) (ROUNDDOWN((u64) (a) + __n - 1, __n));     \
-})
-
 // this is compatible with C++: <https://en.cppreference.com/w/c/types/NULL>.
 #define NULL 0
 
-#define NORETURN _Noreturn
+#define INLINE        inline __attribute__((unused))
+#define ALWAYS_INLINE inline __attribute__((unused, always_inline))
+#define NO_INLINE     __attribute__((noinline))
 
-NORETURN void no_return();
+#define NO_RETURN _Noreturn
+
+NO_INLINE NO_RETURN void no_return();
+
+#define MIN(a, b)                                                                                  \
+    ({                                                                                             \
+        typeof(a) _a = (a);                                                                        \
+        typeof(b) _b = (b);                                                                        \
+        _a <= _b ? _a : _b;                                                                        \
+    })
+
+#define MAX(a, b)                                                                                  \
+    ({                                                                                             \
+        typeof(a) _a = (a);                                                                        \
+        typeof(b) _b = (b);                                                                        \
+        _a >= _b ? _a : _b;                                                                        \
+    })
+
+// return the largest c that c is a multiple of b and c <= a.
+static INLINE u64 round_down(u64 a, u64 b) {
+    return a - a % b;
+}
+
+// return the smallest c that c is a multiple of b and c >= a.
+static INLINE u64 round_up(u64 a, u64 b) {
+    return round_down(a + b - 1, b);
+}

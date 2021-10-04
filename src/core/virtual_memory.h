@@ -1,39 +1,34 @@
-#include <aarch64/mmu.h>
 #pragma once
 
-#ifndef _CORE_VIRTUAL_MEMORY_
-#define _CORE_VIRTUAL_MEMORY_
+#include <aarch64/mmu.h>
+#include <driver/base.h>
 
-#define USERTOP  0x0001000000000000
-#define KERNBASE 0xFFFF000000000000
+#define USPACE_TOP 0x0001000000000000
 
-/* 
- * uvm stands user vitual memory. 
+/*
+ * uvm stands user vitual memory.
  */
 
 typedef struct {
     PTEntriesPtr (*pgdir_init)();
-    PTEntriesPtr (*pgdir_walk)(PTEntriesPtr, void *, int);
-    PTEntriesPtr (*uvm_copy)(PTEntriesPtr);
-    void (*vm_free) (PTEntriesPtr);
-    int (*uvm_map)(PTEntriesPtr, void *, usize, u64);
-    int (*uvm_alloc) (PTEntriesPtr, usize, usize, usize, usize);
-    int (*uvm_dealloc) (PTEntriesPtr, usize, usize, usize);
-    int (*copyout)(PTEntriesPtr, void *, void *, usize);
+    PTEntriesPtr (*pgdir_walk)(PTEntriesPtr pgdir, void *vak, int alloc);
+    PTEntriesPtr (*uvm_copy)(PTEntriesPtr pgdir);
+    void (*vm_free)(PTEntriesPtr pgdir);
+    int (*uvm_map)(PTEntriesPtr pgdir, void *va, usize sz, u64 pa);
+    int (*uvm_alloc)(PTEntriesPtr pgdir, usize base, usize stksz, usize oldsz, usize newsz);
+    int (*uvm_dealloc)(PTEntriesPtr pgdir, usize base, usize oldsz, usize newsz);
+    int (*copyout)(PTEntriesPtr pgdir, void *va, void *p, usize len);
 } VirtualMemoryTable;
 
-
 PTEntriesPtr pgdir_init();
-PTEntriesPtr pgdir_walk(PTEntriesPtr, void *, int);
-PTEntriesPtr uvm_copy(PTEntriesPtr);
-void vm_free(PTEntriesPtr);
-int uvm_map(PTEntriesPtr, void *, usize, u64);
-int uvm_alloc(PTEntriesPtr, usize, usize, usize, usize);
-int uvm_dealloc(PTEntriesPtr, usize, usize, usize);
-void uvm_switch(PTEntriesPtr);
-int copyout(PTEntriesPtr, void *, void *, usize);
-void virtual_memory_init(VirtualMemoryTable *);
+PTEntriesPtr pgdir_walk(PTEntriesPtr pgdir, void *vak, int alloc);
+PTEntriesPtr uvm_copy(PTEntriesPtr pgdir);
+void vm_free(PTEntriesPtr pgdir);
+int uvm_map(PTEntriesPtr pgdir, void *va, usize sz, u64 pa);
+int uvm_alloc(PTEntriesPtr pgdir, usize base, usize stksz, usize oldsz, usize newsz);
+int uvm_dealloc(PTEntriesPtr pgdir, usize base, usize oldsz, usize newsz);
+void uvm_switch(PTEntriesPtr pgdir);
+int copyout(PTEntriesPtr pgdir, void *va, void *p, usize len);
+void virtual_memory_init(VirtualMemoryTable *vmt_ptr);
 void init_virtual_memory();
 void vm_test();
-
-#endif
