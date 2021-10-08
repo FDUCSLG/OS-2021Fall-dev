@@ -32,43 +32,24 @@ static void scheduler_simple() {
 
     for (;;) {
         /* Loop over process table looking for process to run. */
-        /* TODO: Your code here. */
-		for (p = ptable.proc; p < ptable.proc + NPROC; p++) {
-            if (p->state == RUNNABLE) {
-                uvm_switch(p->pgdir);
-                c->proc = p;
-                p->state = RUNNING;
-                swtch(&c->scheduler->context, p->context);
-                // back
-                c->proc = NULL;
-            }
-        }
+        /* TODO: Lab3 Schedule */
+
     }
 }
 
 /*
- * Enter scheduler.  Must hold only ptable.lock
+ * `Swtch` to thiscpu->scheduler.
  */
 static void sched_simple() {
-    /* TODO: Your code here. */
-	if (thiscpu()->proc->state == RUNNING) {
-        PANIC("sched: process running");
-    }
-    swtch(&thiscpu()->proc->context, thiscpu()->scheduler->context);
+    /* TODO: Lab3 Schedule */
+	
 }
 
+/* 
+ * Allocate an unused entry from ptable.
+ * Allocate a new pid for it.
+ */
 static struct proc *alloc_pcb_simple() {
-    struct proc *p;
-    int found = 0;
-    for (p = ptable.proc; p < ptable.proc + NPROC; p++) {
-        if (p->state == UNUSED) {
-            found = 1;
-            break;
-        }
-    }
-    if (found == 0) {
-        return NULL;
-    }
-    p->pid = nextpid++;
-    return p;
+    /* TODO: Lab3 Schedule */
+
 }

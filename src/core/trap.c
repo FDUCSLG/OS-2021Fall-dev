@@ -27,7 +27,7 @@ void trap_global_handler(Trapframe *frame) {
         } break;
 
         case ESR_EC_SVC64: {
-            frame->x[0] = syscall_dispatch(frame);
+			/* TODO: Lab3 Syscall */
 
             // TODO: warn if `iss` is not zero.
             (void)iss;

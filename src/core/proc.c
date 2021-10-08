@@ -17,41 +17,7 @@ extern void trap_return();
  */
 static struct proc *alloc_proc() {
     struct proc *p;
-    p = alloc_pcb();
-    if (p == NULL) {
-        PANIC("no free pcbs\n");
-    }
-
-    p->pgdir = pgdir_init();
-    // memset(p->pgdir, 0, PGSIZE);
-
-    // kstack
-    char* sp = kalloc();
-    if (sp == NULL) {
-        PANIC("proc_alloc: cannot alloc kstack");
-    }
-    p->kstack = sp;
-    sp += KSTACKSIZE;
-    // trapframe
-    sp -= sizeof(*(p->tf));
-    p->tf = (Trapframe *)sp;
-    memset(p->tf, 0, sizeof(*(p->tf)));
-    // trapret
-    // sp -= 8;
-    // *(u64*)sp = (u64)trap_return;
-    // // sp
-    // sp -= 8;
-    // *(u64*)sp = (u64)p->kstack + KSTACKSIZE;
-    // context
-    sp -= sizeof(*(p->context));
-    p->context = (struct context*)sp;
-    memset(p->context, 0, sizeof(*(p->context)));
-    p->context->lr0 = (u64)forkret;
-    p->context->lr = (u64)trap_return;
-
-    // other settings
-    p->state = EMBRYO;
-    return p;
+    /* TODO: Lab3 Process */
 }
 
 /*
@@ -65,27 +31,14 @@ void spawn_init_process() {
     extern char icode[], eicode[];
     p = alloc_proc();
 
-    char *r = kalloc();
-    if (r == NULL) {
-        PANIC("uvm_init: cannot alloc a page");
-    }
-    memset(r, 0, PAGE_SIZE);
-    uvm_map(p->pgdir, (void*)0, PAGE_SIZE, K2P(r));
-    memmove(r, (void*)icode, eicode - icode);
-
-	memset(p->tf, 0, sizeof(*(p->tf)));
-    p->tf->spsr = 0;
-    p->tf->sp = PAGE_SIZE;
-    p->tf->x[30] = 0;
-    p->tf->elr = 0;
-
-    p->state = RUNNABLE;
+    /* TODO: Lab3 Process */
 }
 
 /*
  * A fork child will first swtch here, and then "return" to user space.
  */
 void forkret() {
+	/* TODO: Lab3 Process */
 
 }
 
@@ -96,8 +49,6 @@ void forkret() {
  */
 NO_RETURN void exit() {
     struct proc *p = thiscpu()->proc;
-    p->state = ZOMBIE;
-    sched();
-
-    PANIC("exit should not return\n");
+    /* TODO: Lab3 Process */
+	
 }
