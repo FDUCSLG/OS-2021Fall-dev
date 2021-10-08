@@ -1,25 +1,24 @@
 #pragma once
 
-#ifndef _COMMON_DEFINES_H_
-#define _COMMON_DEFINES_H_
-#include <common/types.h>
+#ifndef _COMMON_TYPES_H_
+#define _COMMON_TYPES_H_
 
-// typedef _Bool bool;
+typedef _Bool bool;
 
 #define true 1
 #define false 0
 
-typedef signed char i8;
-typedef unsigned char u8;
-typedef signed short i16;
-typedef unsigned short u16;
-typedef signed int i32;
-typedef unsigned int u32;
-typedef signed long long i64;
-typedef unsigned long long u64;
+typedef signed char int8_t;
+typedef unsigned char uint8_t;
+typedef signed short int16_t;
+typedef unsigned short uint16_t;
+typedef signed int int32_t;
+typedef unsigned int uint32_t;
+typedef signed long long int64_t;
+typedef unsigned long long uint64_t;
 
-typedef i64 isize;
-typedef u64 usize;
+typedef int64_t ssize_t;
+typedef uint64_t size_t;
 
 /* Efficient min and max operations */
 #define MIN(_a, _b)                 \
@@ -51,8 +50,6 @@ typedef u64 usize;
 // this is compatible with C++: <https://en.cppreference.com/w/c/types/NULL>.
 #define NULL 0
 
-#define NO_RETURN _Noreturn
-
-NORETURN void no_return();
+#define NORETURN _Noreturn
 
 #endif

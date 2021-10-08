@@ -21,7 +21,6 @@ void init_system_per_cpu() {
     set_clock_handler(hello);
     init_trap();
 
-    // arch_enable_trap();
     init_cpu(&simple_scheduler);
 }
 
@@ -40,6 +39,7 @@ NORETURN void main() {
 
     init_system_per_cpu();
 
+	/* TODO: Lab3 uncomment to test interrupt */
     // test_kernel_interrupt();
     spawn_init_process();
     enter_scheduler();
