@@ -40,6 +40,7 @@ NORETURN void main() {
 
     init_system_per_cpu();
 
+    // test_kernel_interrupt();
     spawn_init_process();
     enter_scheduler();
 

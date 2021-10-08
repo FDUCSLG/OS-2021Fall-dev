@@ -19,5 +19,11 @@ typedef void (*InterruptHandler)(void);
 void init_interrupt();
 void set_interrupt_handler(InterruptType type, InterruptHandler handler);
 void interrupt_global_handler();
+static inline void test_kernel_interrupt() {
+    arch_enable_trap();
+    while (1) {
+        arch_wfi();
+    }
+}
 
 #endif

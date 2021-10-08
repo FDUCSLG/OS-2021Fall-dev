@@ -2,7 +2,7 @@
 #include <core/proc.h>
 #include <aarch64/mmu.h>
 #include <core/virtual_memory.h>
-#include <core/memory_manage.h>
+#include <core/physical_memory.h>
 #include <common/string.h>
 #include <core/sched.h>
 #include <core/console.h>
