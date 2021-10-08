@@ -1,4 +1,5 @@
 #include <aarch64/intrinsic.h>
+#include <common/string.h>
 #include <core/console.h>
 #include <core/physical_memory.h>
 #include <core/virtual_memory.h>
@@ -20,11 +21,16 @@ void init_system_per_cpu() {
     set_clock_handler(hello);
     init_trap();
 
-    arch_enable_trap();
+    // arch_enable_trap();
     init_cpu(&simple_scheduler);
 }
 
 NORETURN void main() {
+    // initialize BSS sections.
+    extern char edata[], end[];
+    memset(edata, 0, end - edata);
+
+    init_interrupt();
     init_char_device();
     init_console();
 	/* TODO: Lab1 print */
