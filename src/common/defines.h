@@ -29,6 +29,28 @@ typedef u64 usize;
 // NOTE: no_return will disable traps.
 NO_INLINE NO_RETURN void no_return();
 
+// `offset_of` returns the offset of `member` inside struct `type`.
+#define offset_of(type, member) ((usize)(&((type *)NULL)->member))
+
+// assume `mptr` is a pointer to `member` inside struct `type`, this
+// macro returns the pointer to the "container" struct `type`.
+//
+// this is useful for lists. We often embed a `ListNode` inside a struct:
+//
+// > typedef struct {
+// >     u64 data;
+// >     ListNode node;
+// > } Container;
+// > Container a;
+// > ListNode b = &a.node;
+//
+// then `container_of(b, Container, node)` will be the same as `&a`.
+#define container_of(mptr, type, member)                                                           \
+    ({                                                                                             \
+        const typeof(((type *)NULL)->member) *_mptr = (mptr);                                      \
+        (type *)((u8 *)_mptr - offset_of(type, member))                                          \
+    })
+
 #define MIN(a, b)                                                                                  \
     ({                                                                                             \
         typeof(a) _a = (a);                                                                        \
