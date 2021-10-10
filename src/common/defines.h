@@ -48,7 +48,7 @@ NO_INLINE NO_RETURN void no_return();
 #define container_of(mptr, type, member)                                                           \
     ({                                                                                             \
         const typeof(((type *)NULL)->member) *_mptr = (mptr);                                      \
-        (type *)((u8 *)_mptr - offset_of(type, member))                                          \
+        (type *)((u8 *)_mptr - offset_of(type, member));                                           \
     })
 
 #define MIN(a, b)                                                                                  \

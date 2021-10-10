@@ -1,11 +1,12 @@
 #include <aarch64/intrinsic.h>
 #include <common/string.h>
+#include <core/arena.h>
 #include <core/console.h>
+#include <core/memory_manage.h>
 #include <core/trap.h>
+#include <core/virtual_memory.h>
 #include <driver/clock.h>
 #include <driver/interrupt.h>
-#include <core/memory_manage.h>
-#include <core/virtual_memory.h>
 
 static SpinLock init_lock = {.locked = 0};
 
@@ -25,6 +26,7 @@ void init_system_once() {
     init_virtual_memory();
 
     vm_test();
+    arena_test();
 
     release_spinlock(&init_lock);
 }

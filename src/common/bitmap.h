@@ -7,8 +7,8 @@
 typedef u64 BitmapCell;
 
 #define BITMAP_BITS_PER_CELL (sizeof(BitmapCell) * 8)
-#define BITMAP_TO_NUM_CELLS(num_bits)                                                              \
-    (((num_bits) + BITMAP_BITS_PER_CELL - 1) / BITMAP_BITS_PER_CELL)
+#define BITMAP_TO_NUM_CELLS(size)                                                              \
+    (((size) + BITMAP_BITS_PER_CELL - 1) / BITMAP_BITS_PER_CELL)
 
 // calculate cell index `idx` and in-cell `offset` from `index`.
 #define BITMAP_PARSE_INDEX(index, idx, offset)                                                     \
@@ -17,11 +17,11 @@ typedef u64 BitmapCell;
         offset = index % BITMAP_BITS_PER_CELL;                                                     \
     } while (false)
 
-// declare a new bitmap with `num_bits` bits.
-#define Bitmap(name, num_bits) BitmapCell name[BITMAP_TO_NUM_CELLS(num_bits)]
+// declare a new bitmap with `size` bits.
+#define Bitmap(name, size) BitmapCell name[BITMAP_TO_NUM_CELLS(size)]
 
-// initialize a bitmap with `num_bits` bits. All bits are cleared.
-void init_bitmap(BitmapCell *bitmap, usize num_bits);
+// initialize a bitmap with `size` bits. All bits are cleared.
+void init_bitmap(BitmapCell *bitmap, usize size);
 
 // get the bit at `index`.
 static INLINE bool bitmap_get(BitmapCell *bitmap, usize index) {

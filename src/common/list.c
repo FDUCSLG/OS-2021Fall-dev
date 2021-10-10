@@ -5,7 +5,12 @@ void init_list_node(ListNode *node) {
     node->next = node;
 }
 
-void merge_list(ListNode *node1, ListNode *node2) {
+ListNode *merge_list(ListNode *node1, ListNode *node2) {
+    if (!node1)
+        return node2;
+    if (!node2)
+        return node1;
+
     // before: (arrow is the next pointer)
     //   ... --> node1 --> node3 --> ...
     //   ... <-- node2 <-- node4 <-- ...
@@ -22,10 +27,19 @@ void merge_list(ListNode *node1, ListNode *node2) {
     node2->prev = node1;
     node4->next = node3;
     node3->prev = node4;
+
+    return node1;
 }
 
-void detach_from_list(ListNode *node) {
+ListNode *detach_from_list(ListNode *node) {
+    ListNode *prev = node->prev;
+
     node->prev->next = node->next;
     node->next->prev = node->prev;
     init_list_node(node);
+
+    if (prev == node)
+        return NULL;
+    else
+        return prev;
 }
