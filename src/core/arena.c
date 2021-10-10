@@ -103,11 +103,11 @@ static void move_page_to_head(Arena *arena, ArenaPage *page) {
     }
 }
 
-void free_object(Arena *arena, void *object) {
-    acquire_spinlock(&arena->lock);
-
+void free_object(void *object) {
     ArenaPage *page = get_container_page(object);
-    asserts(page->arena == arena, "object = %p does not belong to arena = %p", object, arena);
+    Arena *arena = page->arena;
+
+    acquire_spinlock(&arena->lock);
 
     usize offset = (usize)object - (usize)page->data;
     asserts(offset % arena->object_size == 0, "unexpected object offset = %zu", offset);
@@ -155,7 +155,7 @@ void arena_test() {
 
     for (usize i = 0; i < 128; i += 2) {
         assert(payloads[i]->cookie == i * 0x19260817);
-        free_object(&arena, payloads[i]);
+        free_object(payloads[i]);
     }
     assert(arena.num_objects == 64);
     puts("free_object okay.");

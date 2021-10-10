@@ -46,6 +46,6 @@ void init_arena(Arena *arena, usize object_size, ArenaPageAllocator allocator);
 void clear_arena(Arena *arena);
 
 void *allocate_object(Arena *arena);
-void free_object(Arena *arena, void *object);
+void free_object(void *object);
 
 void arena_test();
