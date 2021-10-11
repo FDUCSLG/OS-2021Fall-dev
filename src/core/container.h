@@ -1,9 +1,8 @@
 #pragma once
 
 #include <core/proc.h>
-struct container {
 
-};
+struct container {};
 
 typedef struct container container;
 

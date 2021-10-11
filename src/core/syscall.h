@@ -1,7 +1,7 @@
 #pragma once
 
-#include <core/trapframe.h>
 #include <core/syscallno.h>
+#include <core/trapframe.h>
 
 void sys_myexecve(char *s);
 void sys_myexit();

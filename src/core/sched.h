@@ -1,8 +1,8 @@
 #pragma once
 
+#include <aarch64/intrinsic.h>
 #include <common/defines.h>
 #include <core/console.h>
-#include <aarch64/intrinsic.h>
 
 struct scheduler;
 
@@ -33,24 +33,21 @@ struct cpu {
     struct scheduler *scheduler;
     struct proc *proc;
 };
-#define NCPU       4    /* maximum number of CPUs */
+#define NCPU 4 /* maximum number of CPUs */
 extern struct cpu cpus[NCPU];
 
-static inline struct cpu *thiscpu()
-{
+static inline struct cpu *thiscpu() {
     return &cpus[cpuid()];
 }
 
-static inline void init_cpu(struct scheduler *scheduler)
-{
+static inline void init_cpu(struct scheduler *scheduler) {
     thiscpu()->scheduler = scheduler;
 }
 
 void init_sched();
 
-
 static inline void enter_scheduler() {
-	assert(thiscpu()->scheduler != NULL);
+    assert(thiscpu()->scheduler != NULL);
     thiscpu()->scheduler->op->scheduler();
 }
 
@@ -60,7 +57,7 @@ static inline void sched() {
 
 static inline struct proc *alloc_pcb() {
     assert(thiscpu()->scheduler != NULL);
-	assert(thiscpu()->scheduler->op != NULL);
-	assert(thiscpu()->scheduler->op->alloc_pcb != NULL);
+    assert(thiscpu()->scheduler->op != NULL);
+    assert(thiscpu()->scheduler->op->alloc_pcb != NULL);
     return thiscpu()->scheduler->op->alloc_pcb();
 }

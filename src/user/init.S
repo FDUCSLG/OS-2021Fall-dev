@@ -10,7 +10,7 @@ icode:
     mov     x1, #0
     mov     x2, #0
     svc     #0
-	mov     x8, #SYS_myexit
+    mov     x8, #SYS_myexit
     svc     #0
 
 ispin:

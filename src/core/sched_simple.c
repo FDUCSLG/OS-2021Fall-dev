@@ -1,6 +1,6 @@
-#include <core/sched.h>
 #include <core/console.h>
 #include <core/proc.h>
+#include <core/sched.h>
 #include <core/virtual_memory.h>
 
 struct {
@@ -33,7 +33,7 @@ static void scheduler_simple() {
     for (;;) {
         /* Loop over process table looking for process to run. */
         /* TODO: Your code here. */
-		for (p = ptable.proc; p < ptable.proc + NPROC; p++) {
+        for (p = ptable.proc; p < ptable.proc + NPROC; p++) {
             if (p->state == RUNNABLE) {
                 uvm_switch(p->pgdir);
                 c->proc = p;
@@ -51,7 +51,7 @@ static void scheduler_simple() {
  */
 static void sched_simple() {
     /* TODO: Your code here. */
-	if (thiscpu()->proc->state == RUNNING) {
+    if (thiscpu()->proc->state == RUNNING) {
         PANIC("sched: process running");
     }
     swtch(&thiscpu()->proc->context, thiscpu()->scheduler->context);

@@ -1,11 +1,11 @@
 
-#include <core/proc.h>
 #include <aarch64/mmu.h>
-#include <core/virtual_memory.h>
-#include <core/physical_memory.h>
 #include <common/string.h>
-#include <core/sched.h>
 #include <core/console.h>
+#include <core/physical_memory.h>
+#include <core/proc.h>
+#include <core/sched.h>
+#include <core/virtual_memory.h>
 
 void forkret();
 extern void trap_return();
@@ -26,7 +26,7 @@ static struct proc *alloc_proc() {
     // memset(p->pgdir, 0, PGSIZE);
 
     // kstack
-    char* sp = kalloc();
+    char *sp = kalloc();
     if (sp == NULL) {
         PANIC("proc_alloc: cannot alloc kstack");
     }
@@ -44,7 +44,7 @@ static struct proc *alloc_proc() {
     // *(u64*)sp = (u64)p->kstack + KSTACKSIZE;
     // context
     sp -= sizeof(*(p->context));
-    p->context = (struct context*)sp;
+    p->context = (struct context *)sp;
     memset(p->context, 0, sizeof(*(p->context)));
     p->context->lr0 = (u64)forkret;
     p->context->lr = (u64)trap_return;
@@ -57,7 +57,7 @@ static struct proc *alloc_proc() {
 /*
  * Set up first user process(Only used once).
  * Set trapframe for the new process to run
- * from the beginning of the user process determined 
+ * from the beginning of the user process determined
  * by uvm_init
  */
 void spawn_init_process() {
@@ -70,10 +70,10 @@ void spawn_init_process() {
         PANIC("uvm_init: cannot alloc a page");
     }
     memset(r, 0, PAGE_SIZE);
-    uvm_map(p->pgdir, (void*)0, PAGE_SIZE, K2P(r));
-    memmove(r, (void*)icode, eicode - icode);
+    uvm_map(p->pgdir, (void *)0, PAGE_SIZE, K2P(r));
+    memmove(r, (void *)icode, eicode - icode);
 
-	memset(p->tf, 0, sizeof(*(p->tf)));
+    memset(p->tf, 0, sizeof(*(p->tf)));
     p->tf->spsr = 0;
     p->tf->sp = PAGE_SIZE;
     p->tf->x[30] = 0;
@@ -85,9 +85,7 @@ void spawn_init_process() {
 /*
  * A fork child will first swtch here, and then "return" to user space.
  */
-void forkret() {
-
-}
+void forkret() {}
 
 /*
  * Exit the current process.  Does not return.
