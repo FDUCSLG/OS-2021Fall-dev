@@ -2,7 +2,7 @@
 #include <common/defines.h>
 #include <common/spinlock.h>
 #include <core/console.h>
-#include <core/memory_manage.h>
+#include <core/physical_memory.h>
 
 extern char end[];
 
