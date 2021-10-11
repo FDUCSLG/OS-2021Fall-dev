@@ -4,8 +4,8 @@
 // #include <core/sched.h>
 #include <core/trapframe.h>
 
-#define NPROC 64 /* maximum number of processes */
-// #define NOFILE     16   /* open files per process */
+#define NPROC      64   /* maximum number of processes */
+#define NOFILE     16   /* open files per process */
 #define KSTACKSIZE 4096 /* size of per-process kernel stack */
 
 enum procstate { UNUSED, EMBRYO, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
