@@ -10,7 +10,6 @@
 #include <driver/interrupt.h>
 
 static SpinLock init_lock = {.locked = 0};
-struct cpu cpus[NCPU];
 
 void init_system_once() {
     if (!try_acquire_spinlock(&init_lock))

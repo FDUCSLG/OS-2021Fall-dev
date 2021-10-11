@@ -39,4 +39,4 @@ typedef struct proc proc;
 void init_proc();
 void spawn_init_process();
 void yield();
-void exit();
+NO_RETURN void exit();

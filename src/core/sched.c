@@ -2,6 +2,8 @@
 #include <core/console.h>
 #include <core/sched.h>
 
+struct cpu cpus[NCPU];
+
 // struct scheduler *alloc_sched()
 // {
 
