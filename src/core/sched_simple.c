@@ -2,9 +2,11 @@
 #include <core/console.h>
 #include <core/proc.h>
 #include <core/virtual_memory.h>
+#include <common/spinlock.h>
 
 struct {
     struct proc proc[NPROC];
+    SpinLock lock;
 } ptable;
 
 static void scheduler_simple();
