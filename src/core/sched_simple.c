@@ -7,7 +7,7 @@
 struct {
     struct proc proc[NPROC];
     SpinLock lock;
-} ptable;
+} ptable /* TODO: Lab5 multicore: Add locks where needed in this file or others */;
 
 static void scheduler_simple();
 static struct proc *alloc_pcb_simple();
