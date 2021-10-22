@@ -27,7 +27,7 @@ int nextpid = 1;
 void swtch(struct context **, struct context *);
 
 static void init_sched_simple() {
-    init_spinlock(&ptable.lock);
+    init_spinlock(&ptable.lock, "ptable");
 }
 
 static void acquire_ptable_lock() {

@@ -11,7 +11,7 @@ typedef struct {
 static ConsoleContext ctx;
 
 void init_console() {
-    init_spinlock(&ctx.lock);
+    init_spinlock(&ctx.lock, "console");
     init_uart_char_device(&ctx.device);
 }
 

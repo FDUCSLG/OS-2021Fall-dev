@@ -1,9 +1,10 @@
 #include <aarch64/intrinsic.h>
 #include <common/spinlock.h>
 
-void init_spinlock(SpinLock *lock) {
+void init_spinlock(SpinLock *lock, char *name) {
     lock->locked = 0;
     lock->cpu = 0;
+    lock->name = name;
 }
 
 bool try_acquire_spinlock(SpinLock *lock) {
@@ -24,8 +25,7 @@ void acquire_spinlock(SpinLock *lock) {
 
 void release_spinlock(SpinLock *lock) {
     if (!holding_spinlock(lock)) {
-        printf("%p %p\n", thiscpu(), lock->cpu);
-        PANIC("release: lock not held\n");
+        PANIC("release: lock %s not held\n", lock->name);
     }
 	lock->cpu = 0;
     __atomic_clear(&lock->locked, __ATOMIC_RELEASE);

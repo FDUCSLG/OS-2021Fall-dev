@@ -65,7 +65,7 @@ void init_memory_manager() {
     init_memmory_manager_table(&mmt);
     mmt.page_init(mmt.memmory_manager, roundup_end, (void *)P2K(phystop));
 
-    init_spinlock(&mmt.lock);
+    init_spinlock(&mmt.lock, "memory");
 }
 
 /*
