@@ -1,6 +1,12 @@
 #include <aarch64/intrinsic.h>
 #include <common/format.h>
 #include <core/console.h>
+#include <common/spinlock.h>
+
+typedef struct {
+    SpinLock lock;
+    CharDevice device;
+} ConsoleContext;
 
 static ConsoleContext ctx;
 

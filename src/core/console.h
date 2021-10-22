@@ -1,15 +1,15 @@
 #pragma once
 
-#include <common/spinlock.h>
+// #include <common/spinlock.h>
 #include <common/variadic.h>
 #include <core/char_device.h>
 
 #define NEWLINE '\n'
 
-typedef struct {
-    SpinLock lock;
-    CharDevice device;
-} ConsoleContext;
+// typedef struct {
+//     SpinLock lock;
+//     CharDevice device;
+// } ConsoleContext;
 
 void init_console();
 

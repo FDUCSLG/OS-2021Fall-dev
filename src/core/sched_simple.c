@@ -74,7 +74,7 @@ static void scheduler_simple() {
  */
 static void sched_simple() {
     /* TODO: Your code here. */
-	if (!ptable.lock.locked) {
+	if (!holding_spinlock(&ptable.lock)) {
 		PANIC("sched: not holding ptable lock");
 	}
     if (thiscpu()->proc->state == RUNNING) {
