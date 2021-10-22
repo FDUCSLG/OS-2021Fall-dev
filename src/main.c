@@ -22,7 +22,7 @@ void init_system_once() {
     init_interrupt();
     init_char_device();
     init_console();
-    // init_sched();
+    init_sched();
 
     init_memory_manager();
     init_virtual_memory();
