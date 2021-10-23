@@ -1,5 +1,6 @@
 #include <aarch64/intrinsic.h>
 #include <common/string.h>
+#include <core/arena.h>
 #include <core/console.h>
 #include <core/physical_memory.h>
 #include <core/proc.h>
@@ -28,6 +29,7 @@ void init_system_once() {
     init_virtual_memory();
 
     vm_test();
+    arena_test();
 
     release_spinlock(&init_lock);
 }
