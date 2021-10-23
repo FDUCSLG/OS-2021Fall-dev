@@ -50,7 +50,7 @@ static inline void init_sched() {
 
 static inline void init_cpu(struct scheduler *scheduler) {
     thiscpu()->scheduler = scheduler;
-//     init_sched();
+    //     init_sched();
 }
 
 static inline void enter_scheduler() {

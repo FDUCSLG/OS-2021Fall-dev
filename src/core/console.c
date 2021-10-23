@@ -1,7 +1,7 @@
 #include <aarch64/intrinsic.h>
 #include <common/format.h>
-#include <core/console.h>
 #include <common/spinlock.h>
+#include <core/console.h>
 
 typedef struct {
     SpinLock lock;

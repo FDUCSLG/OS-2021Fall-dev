@@ -7,7 +7,7 @@
 extern char end[];
 
 MemmoryManagerTable mmt;
-// SpinLock memmory_manager_lock;
+
 /*
  * Editable, as long as it works as a memory manager.
  */

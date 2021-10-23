@@ -1,8 +1,8 @@
+#include <common/spinlock.h>
 #include <core/console.h>
 #include <core/proc.h>
 #include <core/sched.h>
 #include <core/virtual_memory.h>
-#include <common/spinlock.h>
 
 struct {
     struct proc proc[NPROC];
@@ -19,8 +19,8 @@ struct sched_op simple_op = {.scheduler = scheduler_simple,
                              .alloc_pcb = alloc_pcb_simple,
                              .sched = sched_simple,
                              .init = init_sched_simple,
-							 .acquire_lock = acquire_ptable_lock,
-							 .release_lock = release_ptable_lock};
+                             .acquire_lock = acquire_ptable_lock,
+                             .release_lock = release_ptable_lock};
 struct scheduler simple_scheduler = {.op = &simple_op};
 
 int nextpid = 1;
@@ -74,9 +74,9 @@ static void scheduler_simple() {
  */
 static void sched_simple() {
     /* TODO: Your code here. */
-	if (!holding_spinlock(&ptable.lock)) {
-		PANIC("sched: not holding ptable lock");
-	}
+    if (!holding_spinlock(&ptable.lock)) {
+        PANIC("sched: not holding ptable lock");
+    }
     if (thiscpu()->proc->state == RUNNING) {
         PANIC("sched: process running");
     }

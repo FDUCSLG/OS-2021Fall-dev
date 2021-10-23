@@ -6,10 +6,10 @@
 typedef struct {
     volatile bool locked;
     struct cpu *cpu;
-    char *name;
+    const char *name;
 } SpinLock;
 
-void init_spinlock(SpinLock *lock, char *);
+void init_spinlock(SpinLock *lock, const char *);
 
 bool try_acquire_spinlock(SpinLock *lock);
 void acquire_spinlock(SpinLock *lock);
