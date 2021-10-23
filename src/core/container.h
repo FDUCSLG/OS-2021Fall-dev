@@ -6,7 +6,7 @@ struct container {};
 
 typedef struct container container;
 
-struct container *root_container;
+extern struct container *root_container;
 
 void spawn_init_container();
 

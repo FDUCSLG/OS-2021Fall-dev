@@ -1,12 +1,12 @@
 #include <core/arena.h>
 #include <core/console.h>
-#include <core/memory_manage.h>
+#include <core/physical_memory.h>
 
 void init_arena(Arena *arena, usize object_size, ArenaPageAllocator allocator) {
     asserts(object_size >= ARENA_MIN_OBJECT_SIZE, "object_size = %zu is too small", object_size);
     asserts(object_size <= ARENA_PAGE_CAPACITY, "object_size = %zu is too large", object_size);
 
-    init_spinlock(&arena->lock);
+    init_spinlock(&arena->lock, "Arena");
     arena->allocator = allocator;
 
     arena->object_size = object_size;
