@@ -16,9 +16,12 @@ struct scheduler;
 // };
 
 struct sched_op {
+    void (*init)();
     void (*scheduler)();
     struct proc *(*alloc_pcb)();
     void (*sched)();
+    void (*acquire_lock)();
+    void (*release_lock)();
 };
 
 struct scheduler {
@@ -40,11 +43,15 @@ static inline struct cpu *thiscpu() {
     return &cpus[cpuid()];
 }
 
-static inline void init_cpu(struct scheduler *scheduler) {
-    thiscpu()->scheduler = scheduler;
+static inline void init_sched() {
+    // thiscpu()->scheduler->op->init();
+    simple_scheduler.op->init();
 }
 
-void init_sched();
+static inline void init_cpu(struct scheduler *scheduler) {
+    thiscpu()->scheduler = scheduler;
+    //     init_sched();
+}
 
 static inline void enter_scheduler() {
     assert(thiscpu()->scheduler != NULL);
@@ -60,4 +67,12 @@ static inline struct proc *alloc_pcb() {
     assert(thiscpu()->scheduler->op != NULL);
     assert(thiscpu()->scheduler->op->alloc_pcb != NULL);
     return thiscpu()->scheduler->op->alloc_pcb();
+}
+
+static inline void acquire_sched_lock() {
+    thiscpu()->scheduler->op->acquire_lock();
+}
+
+static inline void release_sched_lock() {
+    thiscpu()->scheduler->op->release_lock();
 }

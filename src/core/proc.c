@@ -50,7 +50,7 @@ static struct proc *alloc_proc() {
     p->context->lr = (u64)trap_return;
 
     // other settings
-    p->state = EMBRYO;
+    // p->state = EMBRYO;
     return p;
 }
 
@@ -85,7 +85,9 @@ void spawn_init_process() {
 /*
  * A fork child will first swtch here, and then "return" to user space.
  */
-void forkret() {}
+void forkret() {
+    release_sched_lock();
+}
 
 /*
  * Exit the current process.  Does not return.
@@ -94,6 +96,7 @@ void forkret() {}
  */
 NO_RETURN void exit() {
     struct proc *p = thiscpu()->proc;
+    acquire_sched_lock();
     p->state = ZOMBIE;
     sched();
 
