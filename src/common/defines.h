@@ -1,6 +1,11 @@
 #pragma once
 
+#ifndef __cplusplus
 typedef _Bool bool;
+#define NO_RETURN _Noreturn
+#else
+#define NO_RETURN [[noreturn]]
+#endif
 
 #define true 1
 #define false 0
@@ -20,14 +25,14 @@ typedef u64 usize;
 // this is compatible with C++: <https://en.cppreference.com/w/c/types/NULL>.
 #define NULL 0
 
+#define BIT(i) (1ull << (i))
+
 #define INLINE        inline __attribute__((unused))
 #define ALWAYS_INLINE inline __attribute__((unused, always_inline))
 #define NO_INLINE     __attribute__((noinline))
 
-#define NO_RETURN _Noreturn
-
 // NOTE: no_return will disable traps.
-NO_INLINE NO_RETURN void no_return();
+NO_RETURN NO_INLINE void no_return();
 
 // `offset_of` returns the offset of `member` inside struct `type`.
 #define offset_of(type, member) ((usize)(&((type *)NULL)->member))

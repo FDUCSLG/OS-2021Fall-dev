@@ -7,10 +7,11 @@
 
 #define BLOCK_SIZE 512
 
-typedef enum : u64 {
-    BLOCK_VALID = 1 << 0,
-    BLOCK_DIRTY = 1 << 1,
-} BlockFlags;
+// block flags:
+#define BLOCK_VALID BIT(0)
+#define BLOCK_DIRTY BIT(1)
+
+typedef u64 BlockFlags;
 
 struct BlockCache;
 

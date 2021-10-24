@@ -16,6 +16,14 @@
 // the maximum length of file names, including trailing '\0'.
 #define FILE_NAME_MAX_LENGTH 14
 
+// inode types:
+#define INODE_INVALID   0
+#define INODE_DIRECTORY 1
+#define INODE_REGULAR   2  // regular file
+#define INODE_DEVICE    3
+
+typedef u16 InodeType;
+
 // disk layout:
 // [ MBR block | super block | log blocks | inode blocks | bitmap blocks | data blocks ]
 //
@@ -30,13 +38,6 @@ typedef struct {
     u32 inode_start;     // the first block of inode area.
     u32 bitmap_start;    // the first block of bitmap area.
 } SuperBlock;
-
-typedef enum : u16 {
-    INODE_INVALID = 0,
-    INODE_DIRECTORY = 1,
-    INODE_REGULAR = 2,  // regular file
-    INODE_DEVICE = 3,
-} InodeType;
 
 // `type == INODE_INVALID` implies this inode is free.
 typedef struct {
