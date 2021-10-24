@@ -1,30 +1,24 @@
 #pragma once
 
 #include <common/defines.h>
-#include <common/rc.h>
-#include <common/spinlock.h>
 #include <fs/log.h>
 
 #define BLOCK_SIZE 512
 
-// block flags:
-#define BLOCK_VALID BIT(0)
-#define BLOCK_DIRTY BIT(1)
-
-typedef u64 BlockFlags;
-
-struct BlockCache;
-
 typedef struct {
-    struct BlockCache *parent;
-    SpinLock lock;
-    RefCount rc;
-    BlockFlags flags;
-    usize block_no;
     u8 data[BLOCK_SIZE];
 } Block;
 
 typedef struct BlockCache {
+    // begin a new atomic operation and initialize `ctx`.
+    // `OpContext` represents an outstanding atomic operation. You can mark the
+    // end of atomic operation by `end_op`.
+    void (*begin_op)(OpContext *ctx);
+
+    // end the atomic operation managed by `ctx`.
+    // it returns when all associated blocks are synchronized to disk.
+    void (*end_op)(OpContext *ctx);
+
     // allocate a new zero-initialized block.
     // block number is returned.
     usize (*alloc)(OpContext *ctx);
@@ -38,16 +32,11 @@ typedef struct BlockCache {
     // unlock `block` and decrement its reference count by one.
     void (*release)(Block *block);
 
-    // begin a new atomic operation and initialize `ctx`.
-    // `OpContext` represents an outstanding atomic operation. You can mark the
-    // end of atomic operation by `end_op`.
-    void (*begin_op)(OpContext *ctx);
-
-    // end the atomic operation managed by `ctx`.
-    void (*end_op)(OpContext *ctx);
-
     // synchronize the content of `block` to disk.
     // `ctx` can be NULL, which indicates this operation does not belong to any
-    // atomic operation.
+    // atomic operation and it immediately writes all content back to disk. However
+    // this is very dangerous, since it may break atomicity of concurrent atomic
+    // operations. YOU SHOULD USE THIS MODE WITH CARE.
+    // if `ctx` is not NULL, the actual writeback is delayed until `end_op`.
     void (*sync)(OpContext *ctx, Block *block);
 } BlockCache;

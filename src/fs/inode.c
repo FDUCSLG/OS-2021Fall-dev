@@ -9,8 +9,8 @@
 static SpinLock lock;
 static ListNode head;
 
-static SuperBlock *sblock;
-static BlockCache *cache;
+static const SuperBlock *sblock;
+static const BlockCache *cache;
 static Arena arena;
 
 // return which block `inode_no` lives on.
@@ -35,7 +35,7 @@ static INLINE void set_flag(bool *flag) {
 }
 
 // initialize inode tree.
-void init_inodes(SuperBlock *_sblock, BlockCache *_cache) {
+void init_inodes(const SuperBlock *_sblock, const BlockCache *_cache) {
     ArenaPageAllocator allocator = {.allocate = kalloc, .free = kfree};
 
     init_spinlock(&lock, "InodeTree");

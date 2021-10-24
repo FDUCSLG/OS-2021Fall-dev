@@ -7,7 +7,6 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS True)
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 17)
 
-include_directories(..)
 include_directories(../..)
 
 set(compiler_warnings "-Wall -Wextra")
@@ -27,4 +26,4 @@ add_library(fs STATIC ${fs_sources})
 target_compile_options(fs PUBLIC "-fno-builtin" "-ffreestanding")
 
 add_executable(inode_test inode_test.cpp)
-target_link_libraries(inode_test fs mock)
+target_link_libraries(inode_test fs mock pthread)

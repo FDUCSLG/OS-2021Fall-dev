@@ -113,4 +113,4 @@ typedef struct InodeTree {
 
 extern InodeTree inodes;
 
-void init_inodes(SuperBlock *sblock, BlockCache *cache);
+void init_inodes(const SuperBlock *sblock, const BlockCache *cache);

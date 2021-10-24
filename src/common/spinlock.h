@@ -1,7 +1,6 @@
 #pragma once
 
 #include <common/defines.h>
-#include <core/cpu.h>
 
 typedef struct SpinLock {
     volatile bool locked;

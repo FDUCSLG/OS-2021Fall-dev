@@ -12,6 +12,7 @@ void _panic(const char *file, size_t line, const char *fmt, ...) {
     va_start(args, fmt);
     vprintf(fmt, args);
     va_end(args);
+    puts("");
 
     std::stringstream buf;
     buf << "PANIC: " << file << " @" << line;
