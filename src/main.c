@@ -81,7 +81,7 @@ NO_RETURN void main() {
         spawn_init_process();
         spawn_init_process();
         spawn_init_process();
-        // spawn_init_process();
+        spawn_init_process();
         enter_scheduler();
     } else {
         enter_scheduler();

@@ -6,6 +6,7 @@
 #include <core/proc.h>
 #include <core/sched.h>
 #include <core/virtual_memory.h>
+#include <common/spinlock.h>
 
 void forkret();
 extern void trap_return();

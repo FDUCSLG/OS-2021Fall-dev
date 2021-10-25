@@ -709,9 +709,10 @@ sd_test()
         b[0].flags = 0;
         b[0].blockno = i;
 
+        
 
         sdrw(&b[0]);
-
+        printf("here\n");
         // Write some value.
         b[i].flags = B_DIRTY;
         b[i].blockno = i;
