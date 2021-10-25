@@ -102,3 +102,34 @@ NO_RETURN void exit() {
 
     PANIC("exit should not return\n");
 }
+
+void
+sleep(void* chan, struct Spinlock* lk)
+{
+    /* TODO: Your code here. */
+    struct proc* p = thiscpu()->proc;
+    if (p == 0) {
+        panic("sleep");
+    }
+
+    // if (lk == 0) {
+    //     panic("sleep without lk");
+    // }
+
+    if (lk != &ptable.lock) {
+        acquire_ptable_lock();
+        release_spinlock(lk);
+    }
+
+    p->chan = chan;
+    p->state = SLEEPING;
+
+    sched();
+    p->chan = 0;
+
+    if (lk != &ptable.lock) {
+        release_ptable_lock();
+        acquire_spinlock(lk);
+    }
+
+}

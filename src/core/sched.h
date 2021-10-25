@@ -76,3 +76,4 @@ static inline void acquire_sched_lock() {
 static inline void release_sched_lock() {
     thiscpu()->scheduler->op->release_lock();
 }
+
