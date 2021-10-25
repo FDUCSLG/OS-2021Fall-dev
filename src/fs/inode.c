@@ -183,11 +183,7 @@ static Inode *inode_share(Inode *inode) {
 // see `inode.h`.
 static void inode_put(OpContext *ctx, Inode *inode) {
     acquire_spinlock(&lock);
-
-    bool is_last = decrement_rc(&inode->rc);
-    if (is_last)
-        detach_from_list(&inode->node);
-
+    bool is_last = inode->rc.count <= 1;
     release_spinlock(&lock);
 
     if (is_last && inode->entry.num_links == 0) {
@@ -199,6 +195,11 @@ static void inode_put(OpContext *ctx, Inode *inode) {
 
         free_object(inode);
     }
+
+    acquire_spinlock(&lock);
+    if (decrement_rc(&inode->rc))
+        detach_from_list(&inode->node);
+    release_spinlock(&lock);
 }
 
 // this function is private to inode interface, because it can allocate block
