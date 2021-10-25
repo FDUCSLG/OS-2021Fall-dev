@@ -31,6 +31,7 @@ struct MockBlockCache {
     }
 
     struct Meta {
+        bool mark = false;
         std::mutex mutex;
         bool used;
 
@@ -134,6 +135,12 @@ struct MockBlockCache {
         std::mt19937 gen(0xdeadbeef);
 
         for (usize i = 0; i < num_blocks; i++) {
+            std::scoped_lock guard(tmpv[i].mutex);
+            if (tmpv[i].mark)
+                throw Internal("marked by others");
+        }
+
+        for (usize i = 0; i < num_blocks; i++) {
             std::scoped_lock guard(tmp[i].mutex);
             if (tmp[i].mark)
                 throw Internal("marked by others");
@@ -198,6 +205,22 @@ struct MockBlockCache {
         return p;
     }
 
+    template <typename T>
+    void load(T &a, T &b) {
+        if (!a.mark) {
+            a = b;
+            a.mark = true;
+        }
+    }
+
+    template <typename T>
+    void store(T &a, T &b) {
+        if (a.mark) {
+            b = a;
+            a.mark = false;
+        }
+    }
+
     void begin_op(OpContext *ctx) {
         std::unique_lock lock(mutex);
         ctx->id = oracle.fetch_add(1);
@@ -216,14 +239,12 @@ struct MockBlockCache {
         if (do_checkpoint) {
             for (usize i = 0; i < num_blocks; i++) {
                 std::scoped_lock guard(tmpv[i].mutex, memv[i].mutex);
-                memv[i] = tmpv[i];
+                store(tmpv[i], memv[i]);
             }
+
             for (usize i = 0; i < num_blocks; i++) {
                 std::scoped_lock guard(tmp[i].mutex, mem[i].mutex);
-                if (tmp[i].mark) {
-                    mem[i] = tmp[i];
-                    tmp[i].mark = false;
-                }
+                store(tmp[i], mem[i]);
             }
 
             usize max_oracle = 0;
@@ -241,20 +262,18 @@ struct MockBlockCache {
     auto alloc(OpContext *ctx) -> usize {
         for (usize i = block_start; i < num_blocks; i++) {
             std::scoped_lock guard(tmpv[i].mutex, memv[i].mutex);
-            tmpv[i] = memv[i];
+            load(tmpv[i], memv[i]);
 
             if (!tmpv[i].used) {
                 tmpv[i].used = true;
                 if (!ctx)
-                    memv[i] = tmpv[i];
+                    store(tmpv[i], memv[i]);
 
                 std::scoped_lock guard(tmp[i].mutex, mem[i].mutex);
-                tmp[i] = mem[i];
+                load(tmp[i], mem[i]);
                 tmp[i].zero();
-                if (ctx)
-                    tmp[i].mark = true;
-                else
-                    mem[i] = tmp[i];
+                if (!ctx)
+                    store(tmp[i], mem[i]);
 
                 return i;
             }
@@ -267,13 +286,13 @@ struct MockBlockCache {
         check_block_no(i);
 
         std::scoped_lock guard(tmpv[i].mutex, memv[i].mutex);
-        tmpv[i] = memv[i];
+        load(tmpv[i], memv[i]);
         if (!tmpv[i].used)
             throw Panic("free unused block");
 
         tmpv[i].used = false;
         if (!ctx)
-            memv[i] = tmpv[i];
+            store(tmpv[i], memv[i]);
     }
 
     auto acquire(usize i) -> Block * {
@@ -283,7 +302,7 @@ struct MockBlockCache {
 
         {
             std::scoped_lock guard(mem[i].mutex);
-            tmp[i] = mem[i];
+            load(tmp[i], mem[i]);
         }
 
         return &tmp[i].block;
@@ -298,11 +317,9 @@ struct MockBlockCache {
         auto *p = check_and_get_cell(b);
         usize i = p->index;
 
-        if (ctx)
-            tmp[i].mark = true;
-        else {
+        if (!ctx) {
             std::scoped_lock guard(mem[i].mutex);
-            mem[i] = tmp[i];
+            store(tmp[i], mem[i]);
         }
     }
 

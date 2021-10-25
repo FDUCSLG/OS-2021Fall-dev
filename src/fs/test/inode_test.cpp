@@ -11,7 +11,7 @@ extern "C" {
 
 int test_init() {
     init_inodes(&sblock, &cache);
-    assert_eq(mock.count_inodes(), 1ull);
+    assert_eq(mock.count_inodes(), 1);
     assert_eq(mock.count_blocks(), 0);
 
     return 0;
@@ -82,9 +82,13 @@ int test_share() {
 
     auto *p = inodes.get(ino);
     auto *q = inodes.share(p);
+    auto *r = inodes.get(ino);
+
+    assert_eq(r->rc.count, 3);
 
     mock.begin_op(ctx);
     inodes.put(ctx, p);
+    assert_eq(q->rc.count, 2);
     mock.end_op(ctx);
 
     mock.fence();
@@ -92,6 +96,9 @@ int test_share() {
 
     mock.begin_op(ctx);
     inodes.put(ctx, q);
+    assert_eq(r->rc.count, 1);
+    assert_eq(mock.count_inodes(), 2);
+    inodes.put(ctx, r);
     assert_eq(mock.count_inodes(), 2);
     mock.end_op(ctx);
 
@@ -159,6 +166,96 @@ int test_small_file() {
     return 0;
 }
 
+int test_large_file() {
+    mock.begin_op(ctx);
+    usize ino = inodes.alloc(ctx, INODE_REGULAR);
+    mock.end_op(ctx);
+
+    constexpr usize max_size = 65535;
+    u8 buf[max_size], copy[max_size];
+    std::mt19937 gen(0x12345678);
+    for (usize i = 0; i < max_size; i++) {
+        copy[i] = buf[i] = gen() & 0xff;
+    }
+
+    auto *p = inodes.get(ino);
+
+    inodes.lock(p);
+    for (usize i = 0, n = 0; i < max_size; i += n) {
+        n = std::min(static_cast<usize>(gen() % 10000), max_size - i);
+
+        mock.begin_op(ctx);
+        inodes.write(ctx, p, buf + i, i, n);
+        auto *q = mock.inspect(ino);
+        assert_eq(q->num_bytes, i);
+        mock.end_op(ctx);
+
+        mock.fence();
+        assert_eq(q->num_bytes, i + n);
+    }
+    inodes.unlock(p);
+
+    for (usize i = 0; i < max_size; i++) {
+        buf[i] = 0;
+    }
+
+    inodes.lock(p);
+    inodes.read(p, buf, 0, max_size);
+    inodes.unlock(p);
+
+    for (usize i = 0; i < max_size; i++) {
+        assert_eq(buf[i], copy[i]);
+    }
+
+    inodes.lock(p);
+    mock.begin_op(ctx);
+    inodes.clear(ctx, p);
+    inodes.unlock(p);
+    mock.end_op(ctx);
+
+    mock.fence();
+    assert_eq(mock.count_inodes(), 2);
+    assert_eq(mock.count_blocks(), 0);
+
+    for (usize i = 0; i < max_size; i++) {
+        copy[i] = buf[i] = gen() & 0xff;
+    }
+
+    inodes.lock(p);
+    mock.begin_op(ctx);
+    inodes.write(ctx, p, buf, 0, max_size);
+    mock.end_op(ctx);
+    inodes.unlock(p);
+
+    mock.fence();
+    auto *q = mock.inspect(ino);
+    assert_eq(q->num_bytes, max_size);
+
+    for (usize i = 0; i < max_size; i++) {
+        buf[i] = 0;
+    }
+
+    inodes.lock(p);
+    for (usize i = 0, n = 0; i < max_size; i += n) {
+        n = std::min(static_cast<usize>(gen() % 10000), max_size - i);
+        inodes.read(p, buf + i, i, n);
+        for (usize j = 0; j < i + n; j++) {
+            assert_eq(buf[j], copy[j]);
+        }
+    }
+    inodes.unlock(p);
+
+    mock.begin_op(ctx);
+    inodes.put(ctx, p);
+    mock.end_op(ctx);
+
+    mock.fence();
+    assert_eq(mock.count_inodes(), 1);
+    assert_eq(mock.count_blocks(), 0);
+
+    return 0;
+}
+
 }  // namespace adhoc
 
 int main() {
@@ -170,6 +267,7 @@ int main() {
         {"sync", adhoc::test_sync},
         {"share", adhoc::test_share},
         {"small_file", adhoc::test_small_file},
+        {"large_file", adhoc::test_large_file},
     };
     Runner(tests).run();
 

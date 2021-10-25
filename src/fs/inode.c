@@ -158,7 +158,7 @@ static void inode_clear(OpContext *ctx, Inode *inode) {
     if (iaddr != 0) {
         Block *block = cache->acquire(iaddr);
         u32 *addrs = get_addrs(block);
-        for (usize i = 0; i < INODE_NUM_DIRECT; i++) {
+        for (usize i = 0; i < INODE_NUM_INDIRECT; i++) {
             if (addrs[i] != 0)
                 cache->free(ctx, addrs[i]);
         }
@@ -209,6 +209,7 @@ static void inode_put(OpContext *ctx, Inode *inode) {
 // allocated, `inode_map` will allocate a new block and update `inode`. at
 // which time, `*modified` will be set to true.
 // the block number is returned.
+//
 // NOTE: caller must hold `inode`'s lock.
 static usize inode_map(OpContext *ctx, Inode *inode, usize offset, bool *modified) {
     InodeEntry *entry = &inode->entry;
