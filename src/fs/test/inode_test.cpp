@@ -256,11 +256,109 @@ int test_large_file() {
     return 0;
 }
 
+int test_dir() {
+    usize ino[5] = {1};
+
+    mock.begin_op(ctx);
+    ino[1] = inodes.alloc(ctx, INODE_DIRECTORY);
+    ino[2] = inodes.alloc(ctx, INODE_REGULAR);
+    ino[3] = inodes.alloc(ctx, INODE_REGULAR);
+    ino[4] = inodes.alloc(ctx, INODE_REGULAR);
+    assert_eq(mock.count_inodes(), 1);
+    mock.end_op(ctx);
+
+    mock.fence();
+    assert_eq(mock.count_inodes(), 5);
+
+    Inode *p[5];
+    for (usize i = 0; i < 5; i++) {
+        p[i] = inodes.get(ino[i]);
+    }
+
+    mock.begin_op(ctx);
+    inodes.insert(ctx, p[0], "fudan", ino[1]);
+    p[1]->entry.num_links++;
+    inodes.sync(ctx, p[1], true);
+
+    auto *q = mock.inspect(ino[0]);
+    assert_eq(q->addrs[0], 0);
+    assert_eq(inodes.lookup(p[0], "fudan", NULL), ino[1]);
+    mock.end_op(ctx);
+
+    mock.fence();
+    assert_eq(inodes.lookup(p[0], "fudan", NULL), ino[1]);
+    assert_eq(inodes.lookup(p[0], "sjtu", NULL), 0);
+    assert_eq(inodes.lookup(p[0], "pku", NULL), 0);
+    assert_eq(inodes.lookup(p[0], "tsinghua", NULL), 0);
+
+    mock.begin_op(ctx);
+    inodes.insert(ctx, p[0], ".vimrc", ino[2]);
+    inodes.insert(ctx, p[1], "alice", ino[3]);
+    inodes.insert(ctx, p[1], "bob", ino[4]);
+    p[2]->entry.num_links++;
+    p[3]->entry.num_links++;
+    p[4]->entry.num_links++;
+    inodes.sync(ctx, p[2], true);
+    inodes.sync(ctx, p[3], true);
+    inodes.sync(ctx, p[4], true);
+    mock.end_op(ctx);
+
+    mock.fence();
+    for (usize i = 1; i < 5; i++) {
+        q = mock.inspect(ino[i]);
+        assert_eq(q->num_links, 1);
+    }
+
+    usize index = 233;
+    assert_eq(inodes.lookup(p[0], "vimrc", &index), 0);
+    assert_eq(index, 233);
+    assert_eq(inodes.lookup(p[0], ".vimrc", &index), ino[2]);
+    assert_ne(index, 233);
+    index = 244;
+    assert_eq(inodes.lookup(p[1], "nano", &index), 0);
+    assert_eq(index, 244);
+    assert_eq(inodes.lookup(p[1], "alice", &index), ino[3]);
+    usize index2 = 255;
+    assert_eq(inodes.lookup(p[1], "bob", &index2), ino[4]);
+    assert_ne(index, 244);
+    assert_ne(index2, 255);
+    assert_ne(index, index2);
+
+    mock.begin_op(ctx);
+    inodes.clear(ctx, p[1]);
+    p[2]->entry.num_links = 0;
+    inodes.sync(ctx, p[2], true);
+
+    q = mock.inspect(ino[1]);
+    assert_ne(q->addrs[0], 0);
+    assert_eq(inodes.lookup(p[1], "alice", NULL), 0);
+    assert_eq(inodes.lookup(p[1], "bob", NULL), 0);
+    mock.end_op(ctx);
+
+    mock.fence();
+    assert_eq(q->addrs[0], 0);
+    assert_eq(mock.count_inodes(), 5);
+    assert_ne(mock.count_blocks(), 0);
+
+    for (usize i = 0; i < 5; i++) {
+        mock.begin_op(ctx);
+        inodes.put(ctx, p[i]);
+        mock.end_op(ctx);
+
+        mock.fence();
+        assert_eq(mock.count_inodes(), (i < 2 ? 5 : 4));
+    }
+
+    return 0;
+}
+
 }  // namespace adhoc
 
 int main() {
     if (Runner::run({"init", test_init}))
         init_inodes(&sblock, &cache);
+    else
+        return -1;
 
     std::vector<Testcase> tests = {
         {"alloc", adhoc::test_alloc},
@@ -268,6 +366,7 @@ int main() {
         {"share", adhoc::test_share},
         {"small_file", adhoc::test_small_file},
         {"large_file", adhoc::test_large_file},
+        {"dir", adhoc::test_dir},
     };
     Runner(tests).run();
 
