@@ -72,6 +72,97 @@ int test_sync() {
     return 0;
 }
 
+int test_touch() {
+    auto *p = inodes.get(1);
+    inodes.lock(p);
+
+    for (usize i = 2; i < mock.num_inodes; i++) {
+        mock.begin_op(ctx);
+        usize ino = inodes.alloc(ctx, INODE_REGULAR);
+        inodes.insert(ctx, p, std::to_string(i).data(), ino);
+
+        auto *q = inodes.get(ino);
+        inodes.lock(q);
+        assert_eq(q->entry.type, INODE_REGULAR);
+        assert_eq(q->entry.major, 0);
+        assert_eq(q->entry.minor, 0);
+        assert_eq(q->entry.num_links, 0);
+        assert_eq(q->entry.num_bytes, 0);
+        assert_eq(q->entry.indirect, 0);
+        for (usize j = 0; j < INODE_NUM_DIRECT; j++) {
+            assert_eq(q->entry.addrs[j], 0);
+        }
+
+        q->entry.num_links++;
+        inodes.sync(ctx, q, true);
+        inodes.unlock(q);
+        inodes.put(ctx, q);
+
+        assert_eq(mock.count_inodes(), i - 1);
+        mock.end_op(ctx);
+
+        mock.fence();
+        assert_eq(mock.count_inodes(), i);
+    }
+
+    usize n = mock.num_inodes - 1;
+    for (usize i = 2; i < mock.num_inodes; i += 2, n--) {
+        mock.begin_op(ctx);
+        usize index = 10086;
+        assert_ne(inodes.lookup(p, std::to_string(i).data(), &index), 0);
+        assert_ne(index, 10086);
+        inodes.remove(ctx, p, index);
+
+        auto *q = inodes.get(i);
+        inodes.lock(q);
+        q->entry.num_links = 0;
+        inodes.sync(ctx, q, true);
+        inodes.unlock(q);
+        inodes.put(ctx, q);
+
+        assert_eq(mock.count_inodes(), n);
+        mock.end_op(ctx);
+
+        mock.fence();
+        assert_eq(mock.count_inodes(), n - 1);
+    }
+
+    mock.begin_op(ctx);
+    usize ino = inodes.alloc(ctx, INODE_DIRECTORY);
+    auto *q = inodes.get(ino);
+    assert_eq(q->entry.type, INODE_DIRECTORY);
+    assert_eq(mock.count_inodes(), n);
+    mock.end_op(ctx);
+
+    mock.fence();
+    assert_eq(mock.count_inodes(), n + 1);
+
+    mock.begin_op(ctx);
+    inodes.put(ctx, q);
+    mock.end_op(ctx);
+
+    mock.fence();
+    assert_eq(mock.count_inodes(), n);
+
+    for (usize i = 3; i < mock.num_inodes; i += 2, n--) {
+        mock.begin_op(ctx);
+        q = inodes.get(i);
+        inodes.lock(q);
+        q->entry.num_links = 0;
+        inodes.sync(ctx, q, true);
+        inodes.unlock(q);
+        inodes.put(ctx, q);
+        assert_eq(mock.count_inodes(), n);
+        mock.end_op(ctx);
+
+        mock.fence();
+        assert_eq(mock.count_inodes(), n - 1);
+    }
+
+    inodes.unlock(p);
+    return 0;
+}
+
 int test_share() {
     mock.begin_op(ctx);
     usize ino = inodes.alloc(ctx, INODE_REGULAR);
@@ -273,6 +364,7 @@ int test_dir() {
     Inode *p[5];
     for (usize i = 0; i < 5; i++) {
         p[i] = inodes.get(ino[i]);
+        inodes.lock(p[i]);
     }
 
     mock.begin_op(ctx);
@@ -342,6 +434,7 @@ int test_dir() {
 
     for (usize i = 0; i < 5; i++) {
         mock.begin_op(ctx);
+        inodes.unlock(p[i]);
         inodes.put(ctx, p[i]);
         mock.end_op(ctx);
 
@@ -363,6 +456,7 @@ int main() {
     std::vector<Testcase> tests = {
         {"alloc", adhoc::test_alloc},
         {"sync", adhoc::test_sync},
+        {"touch", adhoc::test_touch},
         {"share", adhoc::test_share},
         {"small_file", adhoc::test_small_file},
         {"large_file", adhoc::test_large_file},

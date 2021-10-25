@@ -7,11 +7,11 @@
 #include <unistd.h>
 
 #define PAUSE                                                                                      \
-    { Pause pause; }
+    { Pause().pause(); }
 
 class Pause {
 public:
-    Pause() {
+    __attribute__((__noinline__, optimize(3))) void pause() {
         int pid = getpid();
         printf("(debug) process %d paused.\n", pid);
         raise(SIGTSTP);

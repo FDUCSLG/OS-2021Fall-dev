@@ -20,9 +20,10 @@ class Runner {
 public:
     Runner(const std::vector<Testcase> &_testcases) : testcases(_testcases) {}
 
-    void run() {
+    void run(bool stop_on_error = true) {
         for (const auto &testcase : testcases) {
-            run(testcase);
+            if (!run(testcase) && stop_on_error)
+                exit(0);
         }
     }
 

@@ -16,6 +16,12 @@ public:
             throw Internal("key already exists");
     }
 
+    template <typename... Args>
+    void try_add(const Key &key, Args &&...args) {
+        std::unique_lock lock(mutex);
+        map.try_emplace(key, std::forward<Args>(args)...);
+    }
+
     auto operator[](const Key &key) -> Value & {
         std::shared_lock lock(mutex);
         auto it = map.find(key);

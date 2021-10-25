@@ -13,7 +13,7 @@ Map<struct SpinLock *, Lock> map;
 
 extern "C" {
 void init_spinlock(struct SpinLock *lock, const char *name [[maybe_unused]]) {
-    map.add(lock);
+    map.try_add(lock);
 }
 
 void acquire_spinlock(struct SpinLock *lock) {
