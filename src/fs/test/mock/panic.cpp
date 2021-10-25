@@ -1,13 +1,17 @@
+extern "C" {
+#include <common/defines.h>
+}
+
 #include <cstdarg>
 #include <cstdint>
 #include <cstdio>
 
 #include <sstream>
 
-using std::size_t;
+#include "../exception.hpp"
 
 extern "C" {
-void _panic(const char *file, size_t line, const char *fmt, ...) {
+void _panic(const char *file, usize line, const char *fmt, ...) {
     va_list args;
     va_start(args, fmt);
     vprintf(fmt, args);
@@ -16,6 +20,6 @@ void _panic(const char *file, size_t line, const char *fmt, ...) {
 
     std::stringstream buf;
     buf << "PANIC: " << file << " @" << line;
-    throw std::runtime_error(buf.str());
+    throw Panic(buf.str());
 }
 }

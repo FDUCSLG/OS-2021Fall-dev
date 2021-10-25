@@ -7,27 +7,23 @@ extern "C" {
 #include "mock/cache.hpp"
 #include "runner.hpp"
 
-static MockBlockCache proxy;
-static SuperBlock sblock = proxy.get_sblock();
-static BlockCache cache = proxy.get_instance();
-
 int init() {
     init_inodes(&sblock, &cache);
     return 0;
 }
 
-int adhoc() {
-    // TODO
-    return -1;
+int alloc() {
+    init_inodes(&sblock, &cache);
+    return 0;
 }
 
 int main() {
     Runner runner({
         {"init", init},
-        {"adhoc", adhoc},
+        {"alloc", alloc},
     });
 
-    proxy.initialize();
+    setup_instance();
     runner.run();
 
     return 0;

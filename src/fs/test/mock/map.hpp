@@ -4,6 +4,8 @@
 #include <shared_mutex>
 #include <unordered_map>
 
+#include "../exception.hpp"
+
 template <typename Key, typename Value>
 class Map {
 public:
@@ -11,14 +13,14 @@ public:
     void add(const Key &key, Args &&...args) {
         std::unique_lock lock(mutex);
         if (!map.try_emplace(key, std::forward<Args>(args)...).second)
-            throw std::runtime_error("key already exists");
+            throw Internal("key already exists");
     }
 
     auto operator[](const Key &key) -> Value & {
         std::shared_lock lock(mutex);
         auto it = map.find(key);
         if (it == map.end())
-            throw std::runtime_error("key not found");
+            throw Internal("key not found");
         return it->second;
     }
 

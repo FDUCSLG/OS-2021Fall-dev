@@ -1,7 +1,11 @@
+extern "C" {
+#include <common/defines.h>
+}
+
 #include "map.hpp"
 
 namespace {
-Map<struct Arena *, size_t> map;
+Map<struct Arena *, usize> map;
 }
 
 extern "C" {
@@ -18,7 +22,7 @@ void kfree(void *ptr) {
     free(ptr);
 }
 
-void init_arena(Arena *arena, size_t object_size, ArenaPageAllocator allocator [[maybe_unused]]) {
+void init_arena(Arena *arena, usize object_size, ArenaPageAllocator allocator [[maybe_unused]]) {
     map.add(arena, object_size);
 }
 

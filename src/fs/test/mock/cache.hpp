@@ -10,10 +10,24 @@ extern "C" {
 #include <random>
 #include <unordered_map>
 
+#include "../exception.hpp"
+
 struct MockBlockCache {
     static constexpr usize num_blocks = 2000;
     static constexpr usize inode_start = 200;
     static constexpr usize block_start = 1000;
+
+    static auto get_sblock() -> SuperBlock {
+        SuperBlock sblock;
+        sblock.num_blocks = num_blocks;
+        sblock.num_data_blocks = num_blocks - block_start;
+        sblock.num_inodes = 1000;
+        sblock.num_log_blocks = 50;
+        sblock.log_start = 100;
+        sblock.inode_start = inode_start;
+        sblock.bitmap_start = 2;
+        return sblock;
+    }
 
     struct Meta {
         std::mutex mutex;
@@ -48,14 +62,17 @@ struct MockBlockCache {
         }
     };
 
-    static std::mutex mutex;
-    static std::condition_variable cv;
-    static std::atomic<usize> oracle, top;
-    static std::unordered_map<usize, bool> board;
-    static Meta tmpv[num_blocks], memv[num_blocks];
-    static Cell tmp[num_blocks], mem[num_blocks];
+    std::mutex mutex;
+    std::condition_variable cv;
+    std::atomic<usize> oracle, top;
+    std::unordered_map<usize, bool> board;
+    Meta tmpv[num_blocks], memv[num_blocks];
+    Cell tmp[num_blocks], mem[num_blocks];
 
-    static void initialize() {
+    MockBlockCache() {
+        oracle.store(1);
+        top.store(0);
+
         // fill disk with junk.
         std::mt19937 gen(0x19260817);
         for (usize i = 0; i < num_blocks; i++) {
@@ -91,37 +108,27 @@ struct MockBlockCache {
         }
     }
 
-    static auto get_sblock() -> SuperBlock {
-        SuperBlock sblock;
-        sblock.num_blocks = num_blocks;
-        sblock.num_data_blocks = num_blocks - block_start;
-        sblock.num_inodes = 1000;
-        sblock.num_log_blocks = 50;
-        sblock.log_start = 100;
-        sblock.inode_start = inode_start;
-        sblock.bitmap_start = 2;
-        return sblock;
+    void check_block_no(usize i) {
+        if (i >= num_blocks)
+            throw Panic("block number out of range");
     }
 
-    static auto get_instance() -> BlockCache {
-        BlockCache cache;
-        cache.begin_op = MockBlockCache::begin_op;
-        cache.end_op = MockBlockCache::end_op;
-        cache.alloc = MockBlockCache::alloc;
-        cache.free = MockBlockCache::free;
-        cache.acquire = MockBlockCache::acquire;
-        cache.release = MockBlockCache::release;
-        cache.sync = MockBlockCache::sync;
-        return cache;
+    auto check_and_get_cell(Block *b) -> Cell * {
+        Cell *p = container_of(b, Cell, block);
+        isize i = p - tmp;
+        if (i < 0 || static_cast<usize>(i) >= num_blocks)
+            throw Panic("block is not managed by cache");
+
+        return p;
     }
 
-    static void begin_op(OpContext *ctx) {
+    void begin_op(OpContext *ctx) {
         std::unique_lock lock(mutex);
         ctx->id = oracle.fetch_add(1);
         board[ctx->id] = false;
     }
 
-    static void end_op(OpContext *ctx) {
+    void end_op(OpContext *ctx) {
         std::unique_lock lock(mutex);
         board[ctx->id] = true;
 
@@ -152,10 +159,11 @@ struct MockBlockCache {
             cv.wait(lock, [&] { return ctx->id <= top.load(); });
     }
 
-    static usize alloc(OpContext *ctx) {
+    auto alloc(OpContext *ctx) -> usize {
         for (usize i = block_start; i < num_blocks; i++) {
             std::scoped_lock guard(tmpv[i].mutex, memv[i].mutex);
             tmpv[i] = memv[i];
+
             if (!tmpv[i].used) {
                 tmpv[i].used = true;
                 if (!ctx)
@@ -171,38 +179,51 @@ struct MockBlockCache {
             }
         }
 
-        return 0;
+        throw Panic("no free block");
     }
 
-    static void free(OpContext *ctx, usize i) {
+    void free(OpContext *ctx, usize i) {
+        check_block_no(i);
+
         std::scoped_lock guard(tmpv[i].mutex, memv[i].mutex);
         tmpv[i] = memv[i];
         if (!tmpv[i].used)
-            throw std::runtime_error("free unused block");
+            throw Panic("free unused block");
+
         tmpv[i].used = false;
         if (!ctx)
             memv[i] = tmpv[i];
     }
 
-    static Block *acquire(usize i) {
+    auto acquire(usize i) -> Block * {
+        check_block_no(i);
+
         tmp[i].mutex.lock();
-        std::lock_guard guard(mem[i].mutex);
-        tmp[i] = mem[i];
+
+        {
+            std::scoped_lock guard(mem[i].mutex);
+            tmp[i] = mem[i];
+        }
+
         return &tmp[i].block;
     }
 
-    static void release(Block *b) {
-        Cell *p = container_of(b, Cell, block);
+    void release(Block *b) {
+        auto *p = check_and_get_cell(b);
         p->mutex.unlock();
     }
 
-    static void sync(OpContext *ctx, Block *b) {
+    void sync(OpContext *ctx, Block *b) {
         if (!ctx) {
-            Cell *p = container_of(b, Cell, block);
+            auto *p = check_and_get_cell(b);
             usize i = p->index;
 
-            std::lock_guard guard(mem[i].mutex);
+            std::scoped_lock guard(mem[i].mutex);
             mem[i] = tmp[i];
         }
     }
 };
+
+namespace {
+#include "cache.ipp"
+}  // namespace
