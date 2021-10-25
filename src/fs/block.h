@@ -39,4 +39,8 @@ typedef struct BlockCache {
     // operations. YOU SHOULD USE THIS MODE WITH CARE.
     // if `ctx` is not NULL, the actual writeback is delayed until `end_op`.
     void (*sync)(OpContext *ctx, Block *block);
+
+    // wait for all outstanding atomic operations to complete.
+    // it is usually used for testing and debugging.
+    void (*fence)();
 } BlockCache;
