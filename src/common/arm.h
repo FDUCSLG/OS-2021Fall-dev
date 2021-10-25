@@ -1,10 +1,10 @@
 #ifndef INC_ARM_H
 #define INC_ARM_H
 
-#include <stdint.h>
+#include <common/defines.h>
 
 static inline void
-delay(int32_t count)
+delay(i32 count)
 {
     asm volatile("__delay_%=: subs %[count], %[count], #1; bne __delay_%=\n":
                  "=r"(count): [count]"0"(count) : "cc");
@@ -12,9 +12,9 @@ delay(int32_t count)
 
 /* Wait N microsec. */
 static inline void
-delayus(uint32_t n)
+delayus(u32 n)
 {
-    uint64_t f, t, r;
+    u64 f, t, r;
     /* Get the current counter frequency */
     asm volatile ("mrs %[freq], cntfrq_el0" : [freq]"=r"(f));
     /* Read the current counter. */
@@ -26,24 +26,24 @@ delayus(uint32_t n)
     } while (r < t);
 }
 
-static inline uint64_t
+static inline u64
 timestamp()
 {
-    uint64_t t;
+    u64 t;
     asm volatile ("mrs %[cnt], cntpct_el0" : [cnt]"=r"(t));
     return t;
 }
 
 static inline void
-put32(uint64_t p, uint32_t x)
+put32(u64 p, u32 x)
 {
-    *(volatile uint32_t *)p = x;
+    *(volatile u32 *)p = x;
 }
 
-static inline uint32_t
-get32(uint64_t p)
+static inline u32
+get32(u64 p)
 {
-    return *(volatile uint32_t *)p;
+    return *(volatile u32 *)p;
 }
 
 /* Unmask DAIF to start interrupt. */
@@ -76,26 +76,26 @@ dccivac(void *p, int n)
 }
 
 /* Read Exception Syndrome Register (EL1). */
-static inline uint64_t
+static inline u64
 resr()
 {
-    uint64_t r;
+    u64 r;
     asm volatile("mrs %[x], esr_el1" : [x]"=r"(r));
     return r;
 }
 
 /* Read Exception Link Register (EL1). */
-static inline uint64_t
+static inline u64
 relr()
 {
-    uint64_t r;
+    u64 r;
     asm volatile("mrs %[x], elr_el1" : [x]"=r"(r));
     return r;
 }
 
 /* Load Exception Syndrome Register (EL1). */
 static inline void
-lesr(uint64_t r)
+lesr(u64 r)
 {
     asm volatile("msr esr_el1, %[x]" : : [x]"r"(r));
 }
@@ -111,7 +111,7 @@ lvbar(void *p)
 
 /* Load Translation Table Base Register 0 (EL1). */
 static inline void
-lttbr0(uint64_t p)
+lttbr0(u64 p)
 {
     asm volatile("msr ttbr0_el1, %[x]" : : [x]"r"(p));
     disb();
@@ -121,7 +121,7 @@ lttbr0(uint64_t p)
 
 /* Load Translation Table Base Register 1 (EL1). */
 static inline void
-lttbr1(uint64_t p)
+lttbr1(u64 p)
 {
     asm volatile("msr ttbr1_el1, %[x]" : : [x]"r"(p));
     disb();
@@ -132,7 +132,7 @@ lttbr1(uint64_t p)
 static inline int
 cpuid()
 {
-    int64_t id;
+    i64 id;
     asm volatile("mrs %[x], mpidr_el1" : [x]"=r"(id));
     return id & 0xFF;
 }

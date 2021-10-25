@@ -23,9 +23,10 @@
 #include <core/proc.h>
 #include <common/buf.h>
 #include <common/spinlock.h>
+#include <common/defines.h>
 // Private functions.
 static void sd_start(struct buf* b);
-static void sd_delayus(uint32_t cnt);
+static void sd_delayus(u32 cnt);
 static int sdInit();
 static void sdParseCID();
 static void sdParseCSD();
@@ -500,7 +501,7 @@ static int sdBaseClock;
  */
 
 struct buf sdque;
-struct Spinlock sdlock;
+struct SpinLock sdlock;
 
 void
 sd_init()
@@ -511,9 +512,9 @@ sd_init()
      */
      /* TODO: Your code here. */
     static struct buf mbr;
-    uint32_t* LBA;
-    uint32_t* NUM;
-    uint8_t* end;
+    u32* LBA;
+    u32* NUM;
+    u8* end;
 
     init_spinlock(&sdlock, "sdlock");
     init_buflist(&sdque);
@@ -539,7 +540,7 @@ sd_init()
 
     sdWaitForInterrupt(INT_READ_RDY);
 
-    uint32_t* intbuf = (uint32_t*)mbr.data;
+    u32* intbuf = (u32*)mbr.data;
     for (int done = 0; done < 128; ) {
         intbuf[done++] = *EMMC_DATA;
         // printf("%d %d\n", intbuf[done - 1], done - 1);
@@ -547,8 +548,8 @@ sd_init()
     sdWaitForInterrupt(INT_DATA_DONE);
 
     //no.471-474 475-478 bytes 4bytes
-    LBA = *(uint32_t*)(mbr.data + 0x1CE + 0x8);
-    NUM = *(uint32_t*)(mbr.data + 0x1CE + 0xC);
+    LBA = *(u32*)(mbr.data + 0x1CE + 0x8);
+    NUM = *(u32*)(mbr.data + 0x1CE + 0xC);
     // end = mbr.data[511];
     printf("0x%x\n", LBA);
     printf("0x%x\n", NUM);
@@ -556,7 +557,7 @@ sd_init()
 }
 
 static void
-sd_delayus(uint32_t c)
+sd_delayus(u32 c)
 {
     // Delay 3 times longer on rpi3.
     delayus(c * 3);
@@ -586,17 +587,17 @@ sd_start(struct buf* b)
     *EMMC_BLKSIZECNT = 512;
 
     if ((resp = sdSendCommandA(cmd, bno))) {
-        panic("* EMMC send command error.");
+        PANIC("* EMMC send command error.");
     }
 
     int done = 0;
-    uint32_t* intbuf = (uint32_t*)b->data;
-    asserts((((int64_t)b->data) & 0x03) == 0, "Only support word-aligned buffers. ");
+    u32* intbuf = (u32*)b->data;
+    asserts((((i64)b->data) & 0x03) == 0, "Only support word-aligned buffers. ");
 
     if (write) {
         // Wait for ready interrupt for the next block.
         if ((resp = sdWaitForInterrupt(INT_WRITE_RDY))) {
-            panic("* EMMC ERROR: Timeout waiting for ready to write\n");
+            PANIC("* EMMC ERROR: Timeout waiting for ready to write\n");
             // return sdDebugResponse(resp);
         }
         asserts(!*EMMC_INTERRUPT, "%d ", *EMMC_INTERRUPT);
@@ -629,12 +630,12 @@ sd_intr()
         int write = b->flags & B_DIRTY;
         if (!((write && i == INT_DATA_DONE) || (!write && INT_READ_RDY))) {
             sd_start(b);
-            // FIXME: don't panic
+            // FIXME: don't PANIC
             printf("sd intr unexpected: 0x%x, restarted.\n", i);
         }
         else {
             if (!write) {
-                uint32_t* intbuf = (uint32_t*)b->data;
+                u32* intbuf = (u32*)b->data;
                 for (int done = 0; done < 128; )
                     intbuf[done++] = *EMMC_DATA;
                 sdWaitForInterrupt(INT_DATA_DONE);
@@ -649,7 +650,7 @@ sd_intr()
                 sd_start(buflist_front(&sdque));
         }
     }
-    release(&sdlock);
+    release_spinlock(&sdlock);
 
 }
 
@@ -685,8 +686,8 @@ sdrw(struct buf* b)
             break;
         }
     }
-    if (holding(&sdlock))
-        release(&sdlock);
+    if (holding_spinlock(&sdlock))
+        release_spinlock(&sdlock);
 }
 
 /* SD card test and benchmark. */
@@ -697,7 +698,7 @@ sd_test()
     int n = sizeof(b) / sizeof(b[0]);
     int mb = (n * BSIZE) >> 20;
     assert(mb);
-    int64_t f, t;
+    i64 f, t;
     asm volatile ("mrs %[freq], cntfrq_el0" : [freq] "=r"(f));
     printf("- sd test: begin nblocks %d\n", n);
 
@@ -945,7 +946,7 @@ sdSendCommandP(EMMCCommand* cmd, int arg)
         sdCard.status = 0;
         return resp0 == arg ? SD_OK : SD_ERROR;
     default:
-        panic("Unexpected response.");
+        PANIC("Unexpected response.");
     }
 
     return SD_ERROR;
@@ -1107,15 +1108,15 @@ roundup_pow_of_two(unsigned long x)
  * Get the clock divider for the given requested frequency.
  * This is calculated relative to the SD base clock.
  */
-static uint32_t
-sdGetClockDivider(uint32_t freq)
+static u32
+sdGetClockDivider(u32 freq)
 {
-    uint32_t divisor;
+    u32 divisor;
     // Pi SD frequency is always 41.66667Mhz on baremetal
-    uint32_t closest = 41666666 / freq;
+    u32 closest = 41666666 / freq;
 
     // Get the raw shiftcount
-    uint32_t shiftcount = fls_long(closest - 1);
+    u32 shiftcount = fls_long(closest - 1);
 
     // Note the offset of shift by 1 (look at the spec)
     if (shiftcount > 0) shiftcount--;
@@ -1133,11 +1134,11 @@ sdGetClockDivider(uint32_t freq)
     }
 
     printf("- Divisor selected = %u, pow 2 shift count = %u\n", divisor, shiftcount);
-    uint32_t hi = 0;
+    u32 hi = 0;
     if (sdHostVer > HOST_SPEC_V2)
         hi = (divisor & 0x300) >> 2;    // Only 10 bits on Hosts specs above 2
-    uint32_t lo = (divisor & 0x0ff);    // Low part always valid
-    uint32_t cdiv = (lo << 8) + hi;     // Join and roll to position
+    u32 lo = (divisor & 0x0ff);    // Low part always valid
+    u32 cdiv = (lo << 8) + hi;     // Join and roll to position
     return cdiv;                        // Return cdiv
 }
 
@@ -1283,7 +1284,7 @@ sdSwitchVoltage()
 static void
 sdInitGPIO()
 {
-    uint32_t r;
+    u32 r;
     // GPIO_CD
     r = get32(GPFSEL4); r &= ~(7 << (7 * 3)); put32(GPFSEL4, r);
     put32(GPPUD, 2); delay(150);

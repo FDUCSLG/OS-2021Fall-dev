@@ -1,4 +1,4 @@
-
+#include <core/sd.h>
 #include <aarch64/mmu.h>
 #include <common/string.h>
 #include <core/console.h>
@@ -9,6 +9,8 @@
 
 void forkret();
 extern void trap_return();
+volatile int flag_atom = 0;
+
 /*
  * Look through the process table for an UNUSED proc.
  * If found, change state to EMBRYO and initialize
@@ -87,6 +89,9 @@ void spawn_init_process() {
  */
 void forkret() {
     release_sched_lock();
+    if (!__atomic_test_and_set(&flag_atom, 1)) {
+        sd_test();
+    }
 }
 
 /*
@@ -104,32 +109,21 @@ NO_RETURN void exit() {
 }
 
 void
-sleep(void* chan, struct Spinlock* lk)
+sleep(void* chan, struct SpinLock* lk)
 {
     /* TODO: Your code here. */
-    struct proc* p = thiscpu()->proc;
-    if (p == 0) {
-        panic("sleep");
-    }
-
-    // if (lk == 0) {
-    //     panic("sleep without lk");
-    // }
-
-    if (lk != &ptable.lock) {
-        acquire_ptable_lock();
-        release_spinlock(lk);
-    }
-
-    p->chan = chan;
-    p->state = SLEEPING;
-
-    sched();
-    p->chan = 0;
-
-    if (lk != &ptable.lock) {
-        release_ptable_lock();
-        acquire_spinlock(lk);
-    }
-
+    simple_scheduler.op->sleep(chan,lk);
 }
+
+void
+wakeup(void* chan)
+{
+    /* TODO: Your code here. */
+
+    simple_scheduler.op->acquire_lock();
+
+    simple_scheduler.op->wakeup(chan);
+
+    simple_scheduler.op->release_lock();
+}
+

@@ -1,7 +1,7 @@
 #ifndef INC_BUF_H
 #define INC_BUF_H
 
-#include <stdint.h>
+#include <common/defines.h>
 #include <common/string.h>
 
 #define BSIZE   512
@@ -11,8 +11,8 @@
 
 struct buf {
     int flags;
-    uint32_t blockno;
-    uint8_t data[BSIZE]; // 1B*512
+    u32 blockno;
+    u8 data[BSIZE]; // 1B*512
 
     /* TODO: Your code here. */
     struct buf* qnext;

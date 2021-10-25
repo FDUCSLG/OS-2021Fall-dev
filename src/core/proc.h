@@ -40,3 +40,4 @@ void init_proc();
 void spawn_init_process();
 void yield();
 NO_RETURN void exit();
+void wakeup(void *chan);
