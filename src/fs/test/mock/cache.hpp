@@ -129,6 +129,18 @@ struct MockBlockCache {
         }
     }
 
+    // invalidate all cached blocks and fill them with random data.
+    void fill_junk() {
+        std::mt19937 gen(0xdeadbeef);
+
+        for (usize i = 0; i < num_blocks; i++) {
+            std::scoped_lock guard(tmp[i].mutex);
+            if (tmp[i].mark)
+                throw Internal("marked by others");
+            tmp[i].random(gen);
+        }
+    }
+
     // count how many inodes on disk are valid.
     auto count_inodes() -> usize {
         std::unique_lock lock(mutex);
@@ -144,6 +156,28 @@ struct MockBlockCache {
         }
 
         return count;
+    }
+
+    // count how many blocks on disk are allocated.
+    auto count_blocks() -> usize {
+        std::unique_lock lock(mutex);
+
+        usize count = 0;
+        for (usize i = block_start; i < num_blocks; i++) {
+            std::scoped_lock guard(memv[i].mutex);
+            if (memv[i].used)
+                count++;
+        }
+
+        return count;
+    }
+
+    // inspect on disk inode at specified inode number.
+    auto inspect(usize i) -> InodeEntry * {
+        usize j = inode_start + i / INODE_PER_BLOCK;
+        usize k = i % INODE_PER_BLOCK;
+        auto *arr = reinterpret_cast<InodeEntry *>(mem[j].block.data);
+        return &arr[k];
     }
 
     void check_block_no(usize i) {

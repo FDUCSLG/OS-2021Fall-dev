@@ -14,12 +14,13 @@ extern "C" {
 void _panic(const char *file, usize line, const char *fmt, ...) {
     va_list args;
     va_start(args, fmt);
+    printf("(fatal) ");
     vprintf(fmt, args);
     va_end(args);
     puts("");
 
     std::stringstream buf;
-    buf << "PANIC: " << file << " @" << line;
+    buf << file << ":L" << line << ": kernel panic";
     throw Panic(buf.str());
 }
 }

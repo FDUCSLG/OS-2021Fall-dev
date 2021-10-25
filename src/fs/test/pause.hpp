@@ -14,6 +14,6 @@ public:
     Pause() {
         int pid = getpid();
         printf("(debug) process %d paused.\n", pid);
-        raise(SIGSTOP);
+        raise(SIGTSTP);
     }
 };
