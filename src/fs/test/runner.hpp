@@ -38,13 +38,14 @@ private:
         waitpid(pid, &ws, 0);
 
         if (!WIFEXITED(ws)) {
-            fprintf(stderr, "(error) \"%s\" exited abnormally.\n", testcase.name.data());
+            fprintf(stderr, "(error) \"%s\" [%d] exited abnormally.\n", testcase.name.data(), pid);
         } else {
             int status = WEXITSTATUS(ws);
             if (status != 0) {
                 fprintf(stderr,
-                        "(error) \"%s\" exited with status %d.\n",
+                        "(error) \"%s\" [%d] exited with status %d.\n",
                         testcase.name.data(),
+                        pid,
                         status);
             } else {
                 printf("(info) \"%s\" passed.\n", testcase.name.data());

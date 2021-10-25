@@ -2,43 +2,30 @@
 
 #include <cstdio>
 
+#include <exception>
 #include <string>
 
-struct Exception {
+struct Exception : public std::exception {
     std::string message;
 
     Exception(const std::string &_message) : message(_message) {}
 
-    virtual void print() {
-        print_with_prefix("exception");
-    }
-
-protected:
-    void print_with_prefix(const std::string &prefix) {
-        fprintf(stderr, "%s: %s\n", prefix.data(), message.data());
+    const char *what() const noexcept override {
+        return message.data();
     }
 };
 
 struct Internal final : Exception {
     using Exception::Exception;
-
-    void print() override {
-        print_with_prefix("internal");
-    }
+    virtual ~Internal() = default;
 };
 
 struct Panic final : Exception {
     using Exception::Exception;
-
-    void print() override {
-        print_with_prefix("PANIC");
-    }
+    virtual ~Panic() = default;
 };
 
 struct Offline final : Exception {
     using Exception::Exception;
-
-    void print() override {
-        print_with_prefix("offline");
-    }
+    virtual ~Offline() = default;
 };

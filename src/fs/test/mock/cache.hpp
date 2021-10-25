@@ -16,12 +16,13 @@ struct MockBlockCache {
     static constexpr usize num_blocks = 2000;
     static constexpr usize inode_start = 200;
     static constexpr usize block_start = 1000;
+    static constexpr usize num_inodes = 1000;
 
     static auto get_sblock() -> SuperBlock {
         SuperBlock sblock;
         sblock.num_blocks = num_blocks;
         sblock.num_data_blocks = num_blocks - block_start;
-        sblock.num_inodes = 1000;
+        sblock.num_inodes = num_inodes;
         sblock.num_log_blocks = 50;
         sblock.log_start = 100;
         sblock.inode_start = inode_start;
@@ -40,6 +41,7 @@ struct MockBlockCache {
     };
 
     struct Cell {
+        bool mark = false;
         usize index;
         std::mutex mutex;
         Block block;
@@ -70,11 +72,12 @@ struct MockBlockCache {
     Cell tmp[num_blocks], mem[num_blocks];
 
     MockBlockCache() {
+        std::mt19937 gen(0x19260817);
+
         oracle.store(1);
         top.store(0);
 
         // fill disk with junk.
-        std::mt19937 gen(0x19260817);
         for (usize i = 0; i < num_blocks; i++) {
             tmpv[i].used = false;
             tmp[i].index = i;
@@ -91,8 +94,21 @@ struct MockBlockCache {
             mem[1].block.data[i] = buf[i];
         }
 
+        // mock inodes.
+        InodeEntry node[num_inodes];
+        for (usize i = 0; i < num_inodes; i++) {
+            node[i].type = INODE_INVALID;
+            node[i].major = gen() & 0xffff;
+            node[i].minor = gen() & 0xffff;
+            node[i].num_links = gen() & 0xffff;
+            node[i].num_bytes = gen() & 0xffff;
+            for (usize j = 0; j < INODE_NUM_DIRECT; j++) {
+                node[i].addrs[j] = gen();
+            }
+            node[i].indirect = gen();
+        }
+
         // mock root inode.
-        InodeEntry node[2];  // node[0] is reserved.
         node[1].type = INODE_DIRECTORY;
         node[1].major = 0;
         node[1].minor = 0;
@@ -102,10 +118,32 @@ struct MockBlockCache {
             node[1].addrs[i] = 0;
         }
         node[1].indirect = 0;
-        buf = reinterpret_cast<u8 *>(&node);
-        for (usize i = 0; i < sizeof(node); i++) {
-            mem[inode_start].block.data[i] = buf[i];
+
+        usize step = 0;
+        for (usize i = 0, j = inode_start; i < num_inodes; i += step, j++) {
+            step = std::min(num_inodes - i, static_cast<usize>(INODE_PER_BLOCK));
+            buf = reinterpret_cast<u8 *>(&node[i]);
+            for (usize k = 0; k < step * sizeof(InodeEntry); k++) {
+                mem[j].block.data[k] = buf[k];
+            }
         }
+    }
+
+    // count how many inodes on disk are valid.
+    auto count_inodes() -> usize {
+        std::unique_lock lock(mutex);
+
+        usize step = 0, count = 0;
+        for (usize i = 0, j = inode_start; i < num_inodes; i += step, j++) {
+            step = std::min(num_inodes - i, static_cast<usize>(INODE_PER_BLOCK));
+            auto *inodes = reinterpret_cast<InodeEntry *>(mem[j].block.data);
+            for (usize k = 0; k < step; k++) {
+                if (inodes[k].type != INODE_INVALID)
+                    count++;
+            }
+        }
+
+        return count;
     }
 
     void check_block_no(usize i) {
@@ -115,6 +153,10 @@ struct MockBlockCache {
 
     auto check_and_get_cell(Block *b) -> Cell * {
         Cell *p = container_of(b, Cell, block);
+        isize offset = reinterpret_cast<u8 *>(p) - reinterpret_cast<u8 *>(tmp);
+        if (offset % sizeof(Cell) != 0)
+            throw Panic("pointer not aligned");
+
         isize i = p - tmp;
         if (i < 0 || static_cast<usize>(i) >= num_blocks)
             throw Panic("block is not managed by cache");
@@ -144,7 +186,10 @@ struct MockBlockCache {
             }
             for (usize i = 0; i < num_blocks; i++) {
                 std::scoped_lock guard(tmp[i].mutex, mem[i].mutex);
-                mem[i] = tmp[i];
+                if (tmp[i].mark) {
+                    mem[i] = tmp[i];
+                    tmp[i].mark = false;
+                }
             }
 
             usize max_oracle = 0;
@@ -172,7 +217,9 @@ struct MockBlockCache {
                 std::scoped_lock guard(tmp[i].mutex, mem[i].mutex);
                 tmp[i] = mem[i];
                 tmp[i].zero();
-                if (!ctx)
+                if (ctx)
+                    tmp[i].mark = true;
+                else
                     mem[i] = tmp[i];
 
                 return i;
@@ -214,13 +261,21 @@ struct MockBlockCache {
     }
 
     void sync(OpContext *ctx, Block *b) {
-        if (!ctx) {
-            auto *p = check_and_get_cell(b);
-            usize i = p->index;
+        auto *p = check_and_get_cell(b);
+        usize i = p->index;
 
+        if (ctx)
+            tmp[i].mark = true;
+        else {
             std::scoped_lock guard(mem[i].mutex);
             mem[i] = tmp[i];
         }
+    }
+
+    void fence() {
+        std::unique_lock lock(mutex);
+        usize current = oracle.load() - 1;
+        cv.wait(lock, [&] { return current <= top.load(); });
     }
 };
 

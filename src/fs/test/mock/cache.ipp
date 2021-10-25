@@ -34,6 +34,10 @@ static void stub_sync(OpContext *ctx, Block *block) {
     mock->sync(ctx, block);
 }
 
+static void stub_fence() {
+    mock->fence();
+}
+
 [[maybe_unused]] static void setup_instance() {
     mock = std::make_unique<MockBlockCache>();
 
@@ -46,4 +50,5 @@ static void stub_sync(OpContext *ctx, Block *block) {
     cache.acquire = stub_acquire;
     cache.release = stub_release;
     cache.sync = stub_sync;
+    cache.fence = stub_fence;
 }
