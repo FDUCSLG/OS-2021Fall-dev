@@ -26,10 +26,7 @@ public:
         }
     }
 
-private:
-    std::vector<Testcase> testcases;
-
-    void run(const Testcase &testcase) {
+    static bool run(const Testcase &testcase) {
         int pid;
         if ((pid = fork()) == 0)
             exit(testcase.func());
@@ -39,6 +36,7 @@ private:
 
         if (!WIFEXITED(ws)) {
             fprintf(stderr, "(error) \"%s\" [%d] exited abnormally.\n", testcase.name.data(), pid);
+            return false;
         } else {
             int status = WEXITSTATUS(ws);
             if (status != 0) {
@@ -47,9 +45,14 @@ private:
                         testcase.name.data(),
                         pid,
                         status);
-            } else {
+                return false;
+            } else
                 printf("(info) \"%s\" passed.\n", testcase.name.data());
-            }
         }
+
+        return true;
     }
+
+private:
+    std::vector<Testcase> testcases;
 };

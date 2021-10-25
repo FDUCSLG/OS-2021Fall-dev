@@ -9,16 +9,14 @@ extern "C" {
 #include "pause.hpp"
 #include "runner.hpp"
 
-int init() {
+int test_init() {
     init_inodes(&sblock, &cache);
+    assert_eq(mock->count_inodes(), 1ull);
+
     return 0;
 }
 
-int alloc() {
-    init_inodes(&sblock, &cache);
-
-    assert_eq(mock->count_inodes(), 1ull);
-
+int test_alloc() {
     OpContext _ctx, *ctx = &_ctx;
     mock->begin_op(ctx);
     usize ino = inodes.alloc(ctx, INODE_REGULAR);
@@ -46,14 +44,21 @@ int alloc() {
     return 0;
 }
 
-int main() {
-    Runner runner({
-        {"init", init},
-        {"alloc", alloc},
-    });
+int test_sync() {
+    return 0;
+}
 
+int main() {
     setup_instance();
-    runner.run();
+
+    if (Runner::run({"init", test_init}))
+        init_inodes(&sblock, &cache);
+
+    std::vector<Testcase> tests = {
+        {"alloc", test_alloc},
+        {"sync", test_sync},
+    };
+    Runner(tests).run();
 
     return 0;
 }
