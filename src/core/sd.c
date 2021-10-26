@@ -712,7 +712,7 @@ sd_test()
         
 
         sdrw(&b[0]);
-        printf("here\n");
+        // printf("here\n");
         // Write some value.
         b[i].flags = B_DIRTY;
         b[i].blockno = i;

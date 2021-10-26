@@ -23,16 +23,14 @@ void trap_global_handler(Trapframe *frame) {
     i32 src = get32(IRQ_SRC_CORE(cpuid()));
 
     if (src & IRQ_CNTPNSIRQ) {
-        printf("IRQ_CNTPNSIRQ\n");
+        // printf("IRQ_CNTPNSIRQ\n");
         set_clock_handler(yield);
         invoke_clock_handler();
         reset_clock(1000);
     }
-    
-    else if (src & IRQ_TIMER) printf("IRQ_TIMER\n");
-    else if (src & IRQ_GPU){
+    if (src & IRQ_GPU){
         if (get32(IRQ_PENDING_1) & AUX_INT) uart_intr();
-        else if (get32(IRQ_PENDING_2) & VC_ARASANSDIO_INT) printf("IRQ_GPU,VC_ARASANSDIO_INT\n"),sd_intr();
+        else if (get32(IRQ_PENDING_2) & VC_ARASANSDIO_INT) sd_intr();
         else PANIC("trap: unexpected irq.\n");
     }
     else {
