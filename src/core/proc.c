@@ -134,7 +134,7 @@ yield()
     simple_scheduler.op->acquire_lock();
     struct proc* p = thiscpu()->proc;
     p->state = RUNNABLE;
-    // cprintf("in yield\n");
+    // printf("in yield\n");
     sched();
     simple_scheduler.op->release_lock();
 }

@@ -129,12 +129,12 @@ lttbr1(u64 p)
     disb();
 }
 
-static inline int
-cpuid()
-{
-    i64 id;
-    asm volatile("mrs %[x], mpidr_el1" : [x]"=r"(id));
-    return id & 0xFF;
-}
+// static inline int
+// cpuid()
+// {
+//     i64 id;
+//     asm volatile("mrs %[x], mpidr_el1" : [x]"=r"(id));
+//     return id & 0xFF;
+// }
 
 #endif
