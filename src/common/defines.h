@@ -1,13 +1,8 @@
 #pragma once
 
-#ifndef _COMMON_DEFINES_H_
-#define _COMMON_DEFINES_H_
 #include <common/types.h>
 
 // typedef _Bool bool;
-
-#define true 1
-#define false 0
 
 typedef signed char i8;
 typedef unsigned char u8;
@@ -22,37 +17,57 @@ typedef i64 isize;
 typedef u64 usize;
 
 /* Efficient min and max operations */
-#define MIN(_a, _b)                 \
-({                                  \
-    typeof(_a) __a = (_a);          \
-    typeof(_b) __b = (_b);          \
-    __a <= __b ? __a : __b;         \
-})
+#define MIN(_a, _b)                                                                                \
+    ({                                                                                             \
+        typeof(_a) __a = (_a);                                                                     \
+        typeof(_b) __b = (_b);                                                                     \
+        __a <= __b ? __a : __b;                                                                    \
+    })
 
-#define MAX(_a, _b)                 \
-({                                  \
-    typeof(_a) __a = (_a);          \
-    typeof(_b) __b = (_b);          \
-    __a >= __b ? __a : __b;         \
-})
-
-#define ROUNDDOWN(a, n)                 \
-({                                      \
-    uint64_t __a = (uint64_t) (a);      \
-    (typeof(a)) (__a - __a % (n));      \
-})
-
-#define ROUNDUP(a, n)                                           \
-({                                                              \
-    uint64_t __n = (uint64_t) (n);                              \
-    (typeof(a)) (ROUNDDOWN((uint64_t) (a) + __n - 1, __n));     \
-})
-
-// this is compatible with C++: <https://en.cppreference.com/w/c/types/NULL>.
-#define NULL 0
+#define MAX(_a, _b)                                                                                \
+    ({                                                                                             \
+        typeof(_a) __a = (_a);                                                                     \
+        typeof(_b) __b = (_b);                                                                     \
+        __a >= __b ? __a : __b;                                                                    \
+    })
 
 #define NO_RETURN _Noreturn
 
-NORETURN void no_return();
+#define INLINE        inline __attribute__((unused))
+#define ALWAYS_INLINE inline __attribute__((unused, always_inline))
+#define NO_INLINE     __attribute__((noinline))
 
-#endif
+// NOTE: no_return will disable traps.
+NO_INLINE NO_RETURN void no_return();
+
+// `offset_of` returns the offset of `member` inside struct `type`.
+#define offset_of(type, member) ((usize)(&((type *)NULL)->member))
+
+// assume `mptr` is a pointer to `member` inside struct `type`, this
+// macro returns the pointer to the "container" struct `type`.
+//
+// this is useful for lists. We often embed a `ListNode` inside a struct:
+//
+// > typedef struct {
+// >     u64 data;
+// >     ListNode node;
+// > } Container;
+// > Container a;
+// > ListNode b = &a.node;
+//
+// then `container_of(b, Container, node)` will be the same as `&a`.
+#define container_of(mptr, type, member)                                                           \
+    ({                                                                                             \
+        const typeof(((type *)NULL)->member) *_mptr = (mptr);                                      \
+        (type *)((u8 *)_mptr - offset_of(type, member));                                           \
+    })
+
+// return the largest c that c is a multiple of b and c <= a.
+static INLINE u64 round_down(u64 a, u64 b) {
+    return a - a % b;
+}
+
+// return the smallest c that c is a multiple of b and c >= a.
+static INLINE u64 round_up(u64 a, u64 b) {
+    return round_down(a + b - 1, b);
+}
