@@ -53,16 +53,20 @@ static void insert_page(Arena *arena, ArenaPage *page) {
         arena->pages = page;
 }
 
-static void add_page(Arena *arena) {
+static ArenaPage *add_page(Arena *arena) {
     ArenaPage *page = arena->allocator.allocate();
     asserts((u64)page % ARENA_PAGE_SIZE == 0, "page address must be aligned on ARENA_PAGE_SIZE");
 
-    init_arena_page(arena, page);
-    insert_page(arena, page);
-    arena->num_pages++;
+    if (page != NULL) {
+        init_arena_page(arena, page);
+        insert_page(arena, page);
+        arena->num_pages++;
+    }
+
+    return page;
 }
 
-void *allocate_object(Arena *arena) {
+void *alloc_object(Arena *arena) {
     acquire_spinlock(&arena->lock);
 
     // if there's no available slot, add a new page.
@@ -141,7 +145,7 @@ void arena_test() {
 
     Payload *payloads[128];
     for (usize i = 0; i < 128; i++) {
-        payloads[i] = allocate_object(&arena);
+        payloads[i] = alloc_object(&arena);
         assert(payloads[i] != NULL);
 
         payloads[i]->cookie = i * 0x19260817;
@@ -160,7 +164,7 @@ void arena_test() {
     assert(arena.num_objects == 64);
     puts("free_object okay.");
 
-    Payload *ptr = allocate_object(&arena);
+    Payload *ptr = alloc_object(&arena);
     assert(ptr != NULL);
     assert(arena.num_objects == 65);
     puts("re-allocate_object okay.");

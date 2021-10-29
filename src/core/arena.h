@@ -45,7 +45,11 @@ void init_arena(Arena *arena, usize object_size, ArenaPageAllocator allocator);
 // it will be freed as well.
 void clear_arena(Arena *arena);
 
-void *allocate_object(Arena *arena);
+// NOTE: allocated object memory is uninitialized.
+void *alloc_object(Arena *arena);
+
+// find which arena `object` belongs to and mark the memory used by `object` as
+// free.
 void free_object(void *object);
 
 void arena_test();

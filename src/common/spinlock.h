@@ -1,9 +1,8 @@
 #pragma once
 
 #include <common/defines.h>
-#include <core/cpu.h>
 
-typedef struct {
+typedef struct SpinLock {
     volatile bool locked;
     struct cpu *cpu;
     const char *name;

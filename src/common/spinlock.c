@@ -1,5 +1,6 @@
 #include <aarch64/intrinsic.h>
 #include <common/spinlock.h>
+#include <core/cpu.h>
 
 void init_spinlock(SpinLock *lock, const char *name) {
     lock->locked = 0;

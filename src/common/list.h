@@ -11,7 +11,7 @@ typedef struct ListNode {
 void init_list_node(ListNode *node);
 
 // merge the list containing `node1` and the list containing `node2`
-// into one list. Make sure `node1->next == node`. both lists can be
+// into one list. It guarantees `node1->next == node2`. Both lists can be
 // empty. This function will return the merged list.
 ListNode *merge_list(ListNode *node1, ListNode *node2);
 

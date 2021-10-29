@@ -2,6 +2,13 @@
 
 #include <common/types.h>
 
+#ifndef __cplusplus
+typedef _Bool bool;
+#define NO_RETURN _Noreturn
+#else
+#define NO_RETURN [[noreturn]]
+#endif
+
 // typedef _Bool bool;
 
 typedef signed char i8;
@@ -31,14 +38,14 @@ typedef u64 usize;
         __a >= __b ? __a : __b;                                                                    \
     })
 
-#define NO_RETURN _Noreturn
+#define BIT(i) (1ull << (i))
 
 #define INLINE        inline __attribute__((unused))
 #define ALWAYS_INLINE inline __attribute__((unused, always_inline))
 #define NO_INLINE     __attribute__((noinline))
 
 // NOTE: no_return will disable traps.
-NO_INLINE NO_RETURN void no_return();
+NO_RETURN NO_INLINE void no_return();
 
 // `offset_of` returns the offset of `member` inside struct `type`.
 #define offset_of(type, member) ((usize)(&((type *)NULL)->member))
