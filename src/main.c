@@ -10,6 +10,8 @@
 #include <driver/clock.h>
 #include <driver/interrupt.h>
 
+struct cpu cpus[NCPU];
+
 static SpinLock init_lock = {.locked = 0};
 
 void init_system_once() {
