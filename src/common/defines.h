@@ -1,15 +1,11 @@
 #pragma once
 
-#include <common/types.h>
-
 #ifndef __cplusplus
 typedef _Bool bool;
 #define NO_RETURN _Noreturn
 #else
 #define NO_RETURN [[noreturn]]
 #endif
-
-// typedef _Bool bool;
 
 typedef signed char i8;
 typedef unsigned char u8;
