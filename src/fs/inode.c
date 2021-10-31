@@ -183,22 +183,24 @@ static Inode *inode_share(Inode *inode) {
 // see `inode.h`.
 static void inode_put(OpContext *ctx, Inode *inode) {
     acquire_spinlock(&lock);
-    bool is_last = inode->rc.count <= 1;
-    release_spinlock(&lock);
+    bool is_last = inode->rc.count <= 1 && inode->entry.num_links == 0;
 
-    if (is_last && inode->entry.num_links == 0) {
+    if (is_last) {
         inode_lock(inode);
+        release_spinlock(&lock);
+
         inode_clear(ctx, inode);
         inode->entry.type = INODE_INVALID;
         inode_sync(ctx, inode, true);
-        inode_unlock(inode);
 
-        free_object(inode);
+        inode_unlock(inode);
+        acquire_spinlock(&lock);
     }
 
-    acquire_spinlock(&lock);
-    if (decrement_rc(&inode->rc))
+    if (decrement_rc(&inode->rc)) {
         detach_from_list(&inode->node);
+        free_object(inode);
+    }
     release_spinlock(&lock);
 }
 
