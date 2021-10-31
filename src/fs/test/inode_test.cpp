@@ -2,6 +2,7 @@ extern "C" {
 #include <fs/inode.h>
 }
 
+#include <chrono>
 #include <thread>
 
 #include "assert.hpp"
@@ -374,14 +375,14 @@ int test_dir() {
 
     auto *q = mock.inspect(ino[0]);
     assert_eq(q->addrs[0], 0);
-    assert_eq(inodes.lookup(p[0], "fudan", NULL), ino[1]);
+    assert_eq(inodes.lookup(p[0], "fudan", nullptr), ino[1]);
     mock.end_op(ctx);
 
     mock.fence();
-    assert_eq(inodes.lookup(p[0], "fudan", NULL), ino[1]);
-    assert_eq(inodes.lookup(p[0], "sjtu", NULL), 0);
-    assert_eq(inodes.lookup(p[0], "pku", NULL), 0);
-    assert_eq(inodes.lookup(p[0], "tsinghua", NULL), 0);
+    assert_eq(inodes.lookup(p[0], "fudan", nullptr), ino[1]);
+    assert_eq(inodes.lookup(p[0], "sjtu", nullptr), 0);
+    assert_eq(inodes.lookup(p[0], "pku", nullptr), 0);
+    assert_eq(inodes.lookup(p[0], "tsinghua", nullptr), 0);
 
     mock.begin_op(ctx);
     inodes.insert(ctx, p[0], ".vimrc", ino[2]);
@@ -423,8 +424,8 @@ int test_dir() {
 
     q = mock.inspect(ino[1]);
     assert_ne(q->addrs[0], 0);
-    assert_eq(inodes.lookup(p[1], "alice", NULL), 0);
-    assert_eq(inodes.lookup(p[1], "bob", NULL), 0);
+    assert_eq(inodes.lookup(p[1], "alice", nullptr), 0);
+    assert_eq(inodes.lookup(p[1], "bob", nullptr), 0);
     mock.end_op(ctx);
 
     mock.fence();
@@ -447,11 +448,229 @@ int test_dir() {
 
 }  // namespace adhoc
 
+namespace concurrent {
+
+using namespace std::chrono_literals;
+
+template <typename T>
+struct Cell {
+    std::mutex mutex;
+    T value;
+
+    Cell() = default;
+    Cell(const T &_value) : value(_value) {}
+
+    operator T() const {
+        return value;
+    }
+
+    auto lock() {
+        return std::unique_lock(mutex);
+    }
+};
+
+int test_lifetime() {
+    constexpr bool verbose = false;
+    constexpr usize num_workers = 4;
+
+    std::atomic<bool> stopped;
+    stopped.store(false);
+
+    struct Pointer {
+        Inode *ptr = nullptr;
+        int refcnt = 0;
+    };
+
+    Cell<int> inode_cnt = 2;
+    static Cell<Pointer> mem[mock.num_inodes];
+
+    std::vector<std::thread> workers;
+    workers.reserve(num_workers);
+
+    for (int i = 0; i < num_workers; i++) {
+        workers.emplace_back([&, i] {
+            enum Op : int {
+                OP_ALLOC,
+                OP_GET,
+                OP_PUT,
+                NUM_OP,
+            };
+
+            std::mt19937_64 gen(0xab784cd2u * i);
+            std::vector<Inode *> ptr;  // inode pointers owned by this worker.
+            ptr.reserve(mock.num_inodes * 2);
+
+            while (!stopped.load()) {
+                Op op = static_cast<Op>(gen() % NUM_OP);
+
+                switch (op) {
+                    case OP_ALLOC: {
+                        auto lock = inode_cnt.lock();
+                        if (inode_cnt < static_cast<int>(mock.num_inodes))
+                            inode_cnt.value++;
+                        else
+                            break;
+                        lock.unlock();
+
+                        OpContext ctx;
+                        mock.begin_op(&ctx);
+                        usize ino = inodes.alloc(&ctx, INODE_REGULAR);
+                        mock.end_op(&ctx);
+                        if constexpr (verbose)
+                            printf("[%d] alloc ⇒ %d\n", i, ino);
+
+                        assert_true(1 < ino);
+                        assert_true(ino < mock.num_inodes);
+                        auto *p = inodes.get(ino);
+                        assert_ne(p, nullptr);
+                        ptr.push_back(p);
+                        if constexpr (verbose)
+                            printf("[%d] get %d\n", i, ino);
+
+                        lock = mem[ino].lock();
+                        // assert_eq(mem[ino].value.refcnt, 0);
+                        // assert_eq(mem[ino].value.ptr, nullptr);
+                        mem[ino].value.refcnt++;
+                        mem[ino].value.ptr = p;
+                    } break;
+
+                    case OP_GET: {
+                        usize ino = gen() % (mock.num_inodes - 1) + 1;
+                        auto lock = mem[ino].lock();
+                        if (ino == 1 || mem[ino].value.refcnt > 0) {
+                            OpContext ctx;
+                            auto *q = mem[ino].value.ptr;
+                            if constexpr (verbose)
+                                printf("[%d] get %d\n", i, ino);
+
+                            // prevent inode deallocation during `get`.
+                            if (q) {
+                                inodes.lock(q);
+                                q->entry.num_links++;
+                                mock.begin_op(&ctx);
+                                inodes.sync(&ctx, q, true);
+                                mock.end_op(&ctx);
+                                inodes.unlock(q);  // assert failed: rc == 0
+                            }
+
+                            mem[ino].value.refcnt++;
+                            lock.unlock();
+
+                            auto *p = inodes.get(ino);
+
+                            lock.lock();
+                            assert_ne(p, nullptr);
+                            if (q) {
+                                inodes.lock(p);
+                                p->entry.num_links--;
+                                mock.begin_op(&ctx);
+                                inodes.sync(&ctx, p, true);
+                                mock.end_op(&ctx);
+                                inodes.unlock(p);
+                            }
+                            mem[ino].value.ptr = p;
+                            lock.unlock();
+
+                            ptr.push_back(p);
+                        } else if (!ptr.empty()) {
+                            lock.unlock();
+
+                            usize i = gen() % ptr.size();
+                            usize ino = ptr[i]->inode_no;
+                            if constexpr (verbose)
+                                printf("[%d] share %d\n", i, ino);
+
+                            ptr.push_back(inodes.share(ptr[i]));
+                            lock = mem[ino].lock();
+                            mem[ino].value.refcnt++;
+                        }
+                    } break;
+
+                    case OP_PUT: {
+                        for (int k = 0; k < 3; k++) {
+                            if (!ptr.empty()) {
+                                usize j = gen() % ptr.size();
+                                usize ino = ptr[j]->inode_no;
+                                if constexpr (verbose)
+                                    printf("[%d] put %d\n", i, ino);
+
+                                auto lock = mem[ino].lock();
+                                mem[ino].value.refcnt--;
+                                if (mem[ino].value.refcnt == 0)
+                                    mem[ino].value.ptr = nullptr;
+                                lock.unlock();
+
+                                OpContext ctx;
+                                mock.begin_op(&ctx);
+                                inodes.put(&ctx, ptr[j]);
+                                mock.end_op(&ctx);
+
+                                ptr.erase(ptr.begin() + j);
+                                if (mock.inspect(ino)->type == INODE_INVALID) {
+                                    lock = inode_cnt.lock();
+                                    inode_cnt.value--;
+                                }
+                            }
+                        }
+                    } break;
+
+                    default: fprintf(stderr, "(error) unknown op %d\n", op);
+                }
+
+                if constexpr (verbose) {
+                    printf("[%d] ptr = ", i);
+                    for (auto *p : ptr) {
+                        printf("%d ", p->inode_no);
+                    }
+                    puts("");
+                }
+            }
+
+            if (!ptr.empty()) {
+                OpContext ctx;
+                mock.begin_op(&ctx);
+
+                for (auto *p : ptr) {
+                    usize ino = p->inode_no;
+                    inodes.put(&ctx, p);
+
+                    auto lock = mem[ino].lock();
+                    mem[ino].value.refcnt--;
+                }
+
+                assert_true(mock.count_inodes() > 1);
+                mock.end_op(&ctx);
+                ptr.clear();
+            }
+        });
+    }
+
+    std::this_thread::sleep_for(10s);
+    stopped.store(true);
+    for (auto &worker : workers) {
+        worker.join();
+    }
+
+    for (const auto &m : mem) {
+        assert_eq(m.value.refcnt, 0);
+    }
+
+    mock.fence();
+    assert_eq(mock.count_inodes(), 1);
+
+    return 0;
+}
+
+}  // namespace concurrent
+
 int main() {
     if (Runner::run({"init", test_init}))
         init_inodes(&sblock, &cache);
     else
         return -1;
+
+    while (true)
+        Runner::run({"lifetime", concurrent::test_lifetime});
 
     std::vector<Testcase> tests = {
         {"alloc", adhoc::test_alloc},
@@ -461,6 +680,7 @@ int main() {
         {"small_file", adhoc::test_small_file},
         {"large_file", adhoc::test_large_file},
         {"dir", adhoc::test_dir},
+        {"lifetime", concurrent::test_lifetime},
     };
     Runner(tests).run();
 
