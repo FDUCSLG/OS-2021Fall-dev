@@ -1,13 +1,14 @@
 #include <aarch64/intrinsic.h>
 #include <common/string.h>
+#include <core/arena.h>
 #include <core/console.h>
+#include <core/physical_memory.h>
+#include <core/proc.h>
+#include <core/sched.h>
 #include <core/trap.h>
+#include <core/virtual_memory.h>
 #include <driver/clock.h>
 #include <driver/interrupt.h>
-#include <core/memory_manage.h>
-#include <core/virtual_memory.h>
-#include <core/sched.h>
-#include <core/cpu.h>
 
 static SpinLock init_lock = {.locked = 0};
 
@@ -23,12 +24,12 @@ void init_system_once() {
     init_char_device();
     init_console();
     init_sched();
-    spawn_init_process();
 
     init_memory_manager();
     init_virtual_memory();
 
     vm_test();
+    arena_test();
 
     release_spinlock(&init_lock);
 }
@@ -43,8 +44,8 @@ void init_system_per_cpu() {
     set_clock_handler(hello);
     init_trap();
 
-    arch_enable_trap();
-    init_cpu();
+    // arch_enable_trap();
+    init_cpu(&simple_scheduler);
 }
 
 NO_RETURN void main() {
@@ -73,6 +74,12 @@ NO_RETURN void main() {
         delay_us(10000);
 
     // PANIC("TODO: add %s. CPUID = %zu", "scheduler", cpuid());
+    if (cpuid() == 0) {
+        spawn_init_process();
+        enter_scheduler();
+    } else {
+        enter_scheduler();
+    }
 
     while (true) {
         arch_wfi();

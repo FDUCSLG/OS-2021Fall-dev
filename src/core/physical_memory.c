@@ -2,12 +2,12 @@
 #include <common/defines.h>
 #include <common/spinlock.h>
 #include <core/console.h>
-#include <core/memory_manage.h>
+#include <core/physical_memory.h>
 
 extern char end[];
 
 MemmoryManagerTable mmt;
-SpinLock memmory_manager_lock;
+
 /*
  * Editable, as long as it works as a memory manager.
  */
@@ -64,6 +64,8 @@ void init_memory_manager() {
     void *roundup_end = (void *)round_up((u64)end, PAGE_SIZE);
     init_memmory_manager_table(&mmt);
     mmt.page_init(mmt.memmory_manager, roundup_end, (void *)P2K(phystop));
+
+    init_spinlock(&mmt.lock, "memory");
 }
 
 /*
@@ -80,16 +82,16 @@ void free_range(void *start, void *end) {
  * Corrupt the page by filling non-zero value in it for debugging.
  */
 void *kalloc() {
-    acquire_spinlock(&memmory_manager_lock);
+    acquire_spinlock(&mmt.lock);
     void *p = mmt.page_alloc(mmt.memmory_manager);
 
-    release_spinlock(&memmory_manager_lock);
+    release_spinlock(&mmt.lock);
     return p;
 }
 
 /* Free the physical memory pointed at by v. */
 void kfree(void *va) {
-    acquire_spinlock(&memmory_manager_lock);
+    acquire_spinlock(&mmt.lock);
     mmt.page_free(mmt.memmory_manager, va);
-    release_spinlock(&memmory_manager_lock);
+    release_spinlock(&mmt.lock);
 }

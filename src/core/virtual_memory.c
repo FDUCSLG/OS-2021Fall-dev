@@ -2,7 +2,7 @@
 #include <common/defines.h>
 #include <common/string.h>
 #include <core/console.h>
-#include <core/memory_manage.h>
+#include <core/physical_memory.h>
 #include <core/virtual_memory.h>
 
 /* For simplicity, we only support 4k pages in user pgdir. */

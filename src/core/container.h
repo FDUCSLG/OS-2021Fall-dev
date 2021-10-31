@@ -1,13 +1,12 @@
 #pragma once
 
-#include "proc.h"
-struct container {
+#include <core/proc.h>
 
-};
+struct container {};
 
 typedef struct container container;
 
-struct container *root_container;
+extern struct container *root_container;
 
 void spawn_init_container();
 

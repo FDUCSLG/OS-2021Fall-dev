@@ -1,21 +1,22 @@
-#include "defines.h"
-#include "sched.h"
-#include "console.h"
+#include <common/defines.h>
+#include <core/console.h>
+#include <core/sched.h>
 
-struct scheduler *alloc_sched()
-{
+struct cpu cpus[NCPU];
 
-}
+// struct scheduler *alloc_sched()
+// {
 
-void init_sched()
-{
-    asserts(root_scheduler == NULL, "Root scheduler alloc more than once");
-    root_scheduler = alloc_sched();
-    asserts(root_scheduler != NULL, "Root scheduler not alloc yet");
-}
+// }
 
-NORETURN void default_scheduler()
-{
+// void init_sched()
+// {
+//     // asserts(root_scheduler == NULL, "Root scheduler alloc more than once");
+//     // root_scheduler = alloc_sched();
+//     // asserts(root_scheduler != NULL, "Root scheduler not alloc yet");
+// }
 
-}
+// NO_RETURN void default_scheduler()
+// {
 
+// }

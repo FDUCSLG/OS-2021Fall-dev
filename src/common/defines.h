@@ -1,6 +1,11 @@
 #pragma once
 
+#ifndef __cplusplus
 typedef _Bool bool;
+#define NO_RETURN _Noreturn
+#else
+#define NO_RETURN [[noreturn]]
+#endif
 
 #define true 1
 #define false 0
@@ -20,14 +25,36 @@ typedef u64 usize;
 // this is compatible with C++: <https://en.cppreference.com/w/c/types/NULL>.
 #define NULL 0
 
+#define BIT(i) (1ull << (i))
+
 #define INLINE        inline __attribute__((unused))
 #define ALWAYS_INLINE inline __attribute__((unused, always_inline))
 #define NO_INLINE     __attribute__((noinline))
 
-#define NO_RETURN _Noreturn
-
 // NOTE: no_return will disable traps.
-NO_INLINE NO_RETURN void no_return();
+NO_RETURN NO_INLINE void no_return();
+
+// `offset_of` returns the offset of `member` inside struct `type`.
+#define offset_of(type, member) ((usize)(&((type *)NULL)->member))
+
+// assume `mptr` is a pointer to `member` inside struct `type`, this
+// macro returns the pointer to the "container" struct `type`.
+//
+// this is useful for lists. We often embed a `ListNode` inside a struct:
+//
+// > typedef struct {
+// >     u64 data;
+// >     ListNode node;
+// > } Container;
+// > Container a;
+// > ListNode b = &a.node;
+//
+// then `container_of(b, Container, node)` will be the same as `&a`.
+#define container_of(mptr, type, member)                                                           \
+    ({                                                                                             \
+        const typeof(((type *)NULL)->member) *_mptr = (mptr);                                      \
+        (type *)((u8 *)_mptr - offset_of(type, member));                                           \
+    })
 
 #define MIN(a, b)                                                                                  \
     ({                                                                                             \
