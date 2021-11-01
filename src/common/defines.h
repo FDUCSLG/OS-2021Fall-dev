@@ -1,14 +1,20 @@
 #pragma once
 
 #ifndef __cplusplus
-typedef _Bool bool;
-#define NO_RETURN _Noreturn
-#else
-#define NO_RETURN [[noreturn]]
-#endif
 
-#define true 1
-#define false 0
+typedef _Bool bool;
+static const bool true = 1;
+static const bool false = 0;
+
+#define NULL      ((void *)0)
+#define NO_RETURN _Noreturn
+
+#else
+
+#define NULL      0
+#define NO_RETURN [[noreturn]]
+
+#endif
 
 typedef signed char i8;
 typedef unsigned char u8;
@@ -21,9 +27,6 @@ typedef unsigned long long u64;
 
 typedef i64 isize;
 typedef u64 usize;
-
-// this is compatible with C++: <https://en.cppreference.com/w/c/types/NULL>.
-#define NULL 0
 
 #define BIT(i) (1ull << (i))
 
