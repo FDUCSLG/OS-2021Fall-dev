@@ -37,7 +37,7 @@ NO_RETURN NO_INLINE void no_return();
 // `offset_of` returns the offset of `member` inside struct `type`.
 #define offset_of(type, member) ((usize)(&((type *)NULL)->member))
 
-// assume `mptr` is a pointer to `member` inside struct `type`, this
+// assuming `mptr` is a pointer to `member` inside struct `type`, this
 // macro returns the pointer to the "container" struct `type`.
 //
 // this is useful for lists. We often embed a `ListNode` inside a struct:
@@ -47,7 +47,7 @@ NO_RETURN NO_INLINE void no_return();
 // >     ListNode node;
 // > } Container;
 // > Container a;
-// > ListNode b = &a.node;
+// > ListNode *b = &a.node;
 //
 // then `container_of(b, Container, node)` will be the same as `&a`.
 #define container_of(mptr, type, member)                                                           \
