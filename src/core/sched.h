@@ -28,6 +28,8 @@ struct scheduler {
     // struct sched_obj sched;
     struct sched_op *op;
     struct context *context;
+    struct proc ptable[NPROC];
+    SpinLock lock;
 };
 
 extern struct scheduler simple_scheduler;
