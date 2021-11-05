@@ -81,7 +81,5 @@ NO_RETURN void main() {
         enter_scheduler();
     }
 
-    while (true) {
-        arch_wfi();
-    }
+    no_return();
 }
