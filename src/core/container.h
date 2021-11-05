@@ -13,7 +13,7 @@ struct pid_mapping {
 typedef struct pid_mapping pid_mapping;
 
 struct container {
-    struct proc proc;
+    struct proc *proc;
     struct scheduler scheduler;
     struct pid_mapping pm[NPID];
 };
@@ -27,3 +27,7 @@ void spawn_init_container();
 int alloc_resource();
 
 void trace_usage();
+
+static inline struct container *parent_container(struct container *c) {
+    return container_of(c->proc.parent, struct container, proc);
+}

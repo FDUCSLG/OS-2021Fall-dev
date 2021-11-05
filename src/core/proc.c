@@ -108,13 +108,42 @@ NO_RETURN void exit() {
  * Switch to the scheduler of this proc.
  */
 void yield() {
-
+    acquire_sched_lock();
+    thiscpu()->proc->state = RUNNABLE;
+    sched();
+    release_sched_lock();
 }
 
-void sleep() {
+void sleep(void *chan, SpinLock *lock) {
+	if (!holding_spinlock(lock)) {
+        panic("sleep: lock not held");
+    }
 
+    // change the state of ptable, add lock
+    if (lock != &thiscpu()->scheduler->ptable.lock) {
+        acquire_sched_lock();
+        release_spinlock(lock);
+    }
+
+    thiscpu()->proc->chan = chan;
+    thiscpu()->proc->state = SLEEPING;
+    sched();
+
+    // sched returns
+    thiscpu()->proc->chan = 0;
+
+    if (lock != &thiscpu()->scheduler->ptable.lock) {
+        release_sched_lock();
+        acquire_spinlock(lock);
+    }
 }
 
-void wakeup() {
-
+void wakeup(void *chan) {
+    acquire_sched_lock();
+    for (struct proc *p = thiscpu()->scheduler->ptable.proc; p < thiscpu()->scheduler->ptable.proc + NPROC; p++) {
+        if (p->state == SLEEPING && p->chan == chan) {
+            p->state = RUNNABLE;
+        }
+    }
+    release_sched_lock();
 }
