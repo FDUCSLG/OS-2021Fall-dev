@@ -2,8 +2,8 @@
 
 #include <aarch64/intrinsic.h>
 #include <common/defines.h>
-#include <core/console.h>
 #include <common/spinlock.h>
+#include <core/console.h>
 #include <core/proc.h>
 
 #define MULTI_SCHEDULER
@@ -92,22 +92,29 @@ struct sched_op {
     void (*sched)(struct scheduler *this);
     void (*acquire_lock)(struct scheduler *this);
     void (*release_lock)(struct scheduler *this);
+    struct context *(*get_context)(struct scheduler *this);
 };
+extern struct sched_op simple_op;
+
+#define NCPU 4 /* maximum number of CPUs */
+
 struct scheduler {
     // struct sched_obj sched;
     struct sched_op *op;
-    struct context *context;
-	struct {
-		struct proc proc[NPROC];
+    struct context *context[NCPU];
+    struct {
+        struct proc proc[NPROC];
         SpinLock lock;
     } ptable;
+    int pid;
+    struct scheduler *parent;
+    struct container *cont;
 };
 
 struct cpu {
     struct scheduler *scheduler;
     struct proc *proc;
 };
-#define NCPU 4 /* maximum number of CPUs */
 extern struct cpu cpus[NCPU];
 
 static inline struct cpu *thiscpu() {
@@ -126,6 +133,8 @@ static inline void init_cpu(struct scheduler *scheduler) {
 
 static inline void enter_scheduler() {
     assert(thiscpu()->scheduler != NULL);
+    assert(thiscpu()->scheduler->op != NULL);
+    assert(thiscpu()->scheduler->op->scheduler != NULL);
     thiscpu()->scheduler->op->scheduler(thiscpu()->scheduler);
 }
 

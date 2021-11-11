@@ -12,22 +12,24 @@ struct pid_mapping {
 };
 typedef struct pid_mapping pid_mapping;
 
+typedef enum { MEMORY, PID, INODE } resource_t;
+
 struct container {
-    struct proc *proc;
+    struct proc *p;
     struct scheduler scheduler;
-    struct pid_mapping pm[NPID];
+    SpinLock lock;
+    struct container *parent;
+
+    // pid
+    struct pid_mapping pmap[NPID];
 };
 
 typedef struct container container;
 
 extern struct container *root_container;
 
-void spawn_init_container();
+void init_container();
 
-int alloc_resource();
+void *alloc_resource(struct container *this, struct proc *p, resource_t resource);
 
-void trace_usage();
-
-static inline struct container *parent_container(struct container *c) {
-    return container_of(c->proc.parent, struct container, proc);
-}
+void trace_usage(struct container *this, struct proc *p, resource_t resource);

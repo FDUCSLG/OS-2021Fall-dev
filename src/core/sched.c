@@ -1,14 +1,15 @@
 #include <common/defines.h>
 #include <core/console.h>
+#include <core/container.h>
 #include <core/sched.h>
 #ifdef MULTI_SCHEDULER
-
-static void scheduler_simple();
-static struct proc *alloc_pcb_simple();
-static void sched_simple();
-static void init_sched_simple();
-static void acquire_ptable_lock();
-static void release_ptable_lock();
+struct cpu cpus[NCPU];
+static void scheduler_simple(struct scheduler *this);
+static struct proc *alloc_pcb_simple(struct scheduler *this);
+static void sched_simple(struct scheduler *this);
+static void init_sched_simple(struct scheduler *this);
+static void acquire_ptable_lock(struct scheduler *this);
+static void release_ptable_lock(struct scheduler *this);
 struct sched_op simple_op = {.scheduler = scheduler_simple,
                              .alloc_pcb = alloc_pcb_simple,
                              .sched = sched_simple,
@@ -17,7 +18,6 @@ struct sched_op simple_op = {.scheduler = scheduler_simple,
                              .release_lock = release_ptable_lock};
 struct scheduler simple_scheduler = {.op = &simple_op};
 
-int nextpid = 1;
 void swtch(struct context **, struct context *);
 
 static void init_sched_simple(struct scheduler *this) {
@@ -32,18 +32,21 @@ static void release_ptable_lock(struct scheduler *this) {
     release_spinlock(&this->ptable.lock);
 }
 
-void init_sched()
-{
-    // asserts(root_scheduler == NULL, "Root scheduler alloc more than once");
-    // root_scheduler = alloc_sched();
-    // asserts(root_scheduler != NULL, "Root scheduler not alloc yet");
+static inline struct context *get_context(struct proc *p) {
+    return p->is_scheduler ? ((struct container *)p->cont)->scheduler.context[cpuid()] : p->context;
 }
 
-NO_RETURN void scheduler_simple(struct scheduler *this)
-{
-	struct proc *p;
-    struct cpu *c = thiscpu();
-    c->proc = NULL;
+static inline struct context **get_context_address(struct proc *p) {
+    return p->is_scheduler ? &((struct container *)p->cont)->scheduler.context[cpuid()]
+                           : &p->context;
+}
+
+NO_RETURN void scheduler_simple(struct scheduler *this) {
+    struct proc *p;
+    // struct cpu *c = thiscpu();
+    // c->proc = NULL;
+    assert(thiscpu()->scheduler == this);
+    assert(thiscpu()->proc == this->cont->p || this == &root_container->scheduler);
 
     for (;;) {
         /* Loop over process table looking for process to run. */
@@ -52,13 +55,30 @@ NO_RETURN void scheduler_simple(struct scheduler *this)
         for (p = this->ptable.proc; p < this->ptable.proc + NPROC; p++) {
             if (p->state == RUNNABLE) {
                 uvm_switch(p->pgdir);
-                c->proc = p;
+                thiscpu()->proc = p;
                 p->state = RUNNING;
-                swtch(&c->scheduler->context, p->context);
+                assert(this == thiscpu()->scheduler);
+                swtch(&this->context[cpuid()], get_context(p));
+                if (p->is_scheduler) {
+                    // release_ptable_lock(&((struct container *)p->cont)->scheduler);
+                }
+                thiscpu()->proc = this->cont->p;
+                thiscpu()->scheduler = this;
+                assert(thiscpu()->scheduler == this);
+                assert(thiscpu()->proc == this->cont->p || this == &root_container->scheduler);
+                assert(holding_spinlock(&this->ptable.lock));
+                yield_scheduler(this);
+                assert(thiscpu()->scheduler == this);
+                assert(thiscpu()->proc == this->cont->p || this == &root_container->scheduler);
+                assert(holding_spinlock(&this->ptable.lock));
                 // back
-                c->proc = NULL;
+                // c->proc = NULL;
             }
         }
+        assert(thiscpu()->scheduler == this);
+        assert(thiscpu()->proc == this->cont->p || this == &root_container->scheduler);
+        assert(holding_spinlock(&this->ptable.lock));
+        yield_scheduler(this);
         release_ptable_lock(this);
     }
 }
@@ -74,7 +94,7 @@ static void sched_simple(struct scheduler *this) {
     if (thiscpu()->proc->state == RUNNING) {
         PANIC("sched: process running");
     }
-    swtch(&thiscpu()->proc->context, thiscpu()->scheduler->context);
+    swtch(get_context_address(thiscpu()->proc), this->context[cpuid()]);
 }
 
 static struct proc *alloc_pcb_simple(struct scheduler *this) {
@@ -91,9 +111,28 @@ static struct proc *alloc_pcb_simple(struct scheduler *this) {
         release_ptable_lock(this);
         return NULL;
     }
-    p->pid = nextpid++;
+    alloc_resource(this->cont, p, PID);
+    p->pid = this->pid;
     p->state = EMBRYO;
     release_ptable_lock(this);
+
     return p;
 }
+
+void yield_scheduler(struct scheduler *this) {
+    if (this == &root_container->scheduler)
+        return;
+    acquire_ptable_lock(this->parent);
+    thiscpu()->proc->state = RUNNABLE;
+    thiscpu()->scheduler = this->parent;
+    assert(holding_spinlock(&this->ptable.lock));
+
+    release_ptable_lock(this);
+    // swtch(get_context_address(this), get_context(this->parent));
+    sched_simple(this->parent);
+    acquire_ptable_lock(this);
+    release_ptable_lock(this->parent);
+    thiscpu()->scheduler = this;
+}
+
 #endif
