@@ -14,7 +14,7 @@ static NO_RETURN void container_entry() {
     thiscpu()->scheduler = &((struct container *)(thiscpu()->proc->cont))->scheduler;
     if (do_cont_test) {
         do_cont_test = false;
-        add_loop_test(5);
+        add_loop_test(8);
     }
 
     enter_scheduler();
