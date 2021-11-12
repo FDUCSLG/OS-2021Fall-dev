@@ -45,41 +45,41 @@ struct cpu {
 #define NCPU 4 /* maximum number of CPUs */
 extern struct cpu cpus[NCPU];
 
-static inline struct cpu *thiscpu() {
+static INLINE struct cpu *thiscpu() {
     return &cpus[cpuid()];
 }
 
-static inline void init_sched() {
+static INLINE void init_sched() {
     // thiscpu()->scheduler->op->init();
     simple_scheduler.op->init();
 }
 
-static inline void init_cpu(struct scheduler *scheduler) {
+static INLINE void init_cpu(struct scheduler *scheduler) {
     thiscpu()->scheduler = scheduler;
     //     init_sched();
 }
 
-static inline void enter_scheduler() {
+static INLINE void enter_scheduler() {
     assert(thiscpu()->scheduler != NULL);
     thiscpu()->scheduler->op->scheduler();
 }
 
-static inline void sched() {
+static INLINE void sched() {
     thiscpu()->scheduler->op->sched();
 }
 
-static inline struct proc *alloc_pcb() {
+static INLINE struct proc *alloc_pcb() {
     assert(thiscpu()->scheduler != NULL);
     assert(thiscpu()->scheduler->op != NULL);
     assert(thiscpu()->scheduler->op->alloc_pcb != NULL);
     return thiscpu()->scheduler->op->alloc_pcb();
 }
 
-static inline void acquire_sched_lock() {
+static INLINE void acquire_sched_lock() {
     thiscpu()->scheduler->op->acquire_lock();
 }
 
-static inline void release_sched_lock() {
+static INLINE void release_sched_lock() {
     thiscpu()->scheduler->op->release_lock();
 }
 #else
@@ -117,43 +117,43 @@ struct cpu {
 };
 extern struct cpu cpus[NCPU];
 
-static inline struct cpu *thiscpu() {
+static INLINE struct cpu *thiscpu() {
     return &cpus[cpuid()];
 }
 
-static inline void init_sched() {
+static INLINE void init_sched() {
     // thiscpu()->scheduler->op->init();
     // simple_scheduler.op->init();
 }
 
-static inline void init_cpu(struct scheduler *scheduler) {
+static INLINE void init_cpu(struct scheduler *scheduler) {
     thiscpu()->scheduler = scheduler;
     //     init_sched();
 }
 
-static inline void enter_scheduler() {
+static INLINE void enter_scheduler() {
     assert(thiscpu()->scheduler != NULL);
     assert(thiscpu()->scheduler->op != NULL);
     assert(thiscpu()->scheduler->op->scheduler != NULL);
     thiscpu()->scheduler->op->scheduler(thiscpu()->scheduler);
 }
 
-static inline void sched() {
+static INLINE void sched() {
     thiscpu()->scheduler->op->sched(thiscpu()->scheduler);
 }
 
-static inline struct proc *alloc_pcb() {
+static INLINE struct proc *alloc_pcb() {
     assert(thiscpu()->scheduler != NULL);
     assert(thiscpu()->scheduler->op != NULL);
     assert(thiscpu()->scheduler->op->alloc_pcb != NULL);
     return thiscpu()->scheduler->op->alloc_pcb(thiscpu()->scheduler);
 }
 
-static inline void acquire_sched_lock() {
+static INLINE void acquire_sched_lock() {
     thiscpu()->scheduler->op->acquire_lock(thiscpu()->scheduler);
 }
 
-static inline void release_sched_lock() {
+static INLINE void release_sched_lock() {
     thiscpu()->scheduler->op->release_lock(thiscpu()->scheduler);
 }
 #endif

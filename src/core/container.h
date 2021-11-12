@@ -33,3 +33,5 @@ void init_container();
 void *alloc_resource(struct container *this, struct proc *p, resource_t resource);
 
 void trace_usage(struct container *this, struct proc *p, resource_t resource);
+
+void container_test_init();

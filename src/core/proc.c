@@ -103,7 +103,7 @@ NO_RETURN void exit() {
     PANIC("exit should not return\n");
 }
 
-/* 
+/*
  * Give up CPU.
  * Switch to the scheduler of this proc.
  */

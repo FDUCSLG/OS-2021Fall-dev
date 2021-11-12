@@ -13,9 +13,9 @@ NO_RETURN void sys_myexit() {
     exit();
 }
 
-/* myprint(int x) => 
-			printf("pid %d, pid in root %d, cnt %d\n", getpid(), getrootpid(), x);
-			yield(); */
+/* myprint(int x) =>
+            printf("pid %d, pid in root %d, cnt %d\n", getpid(), getrootpid(), x);
+            yield(); */
 void sys_myprint(int x) {
     int rootpid = -1;
     for (int i = 0; i < NPID; i++) {

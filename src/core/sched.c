@@ -2,7 +2,10 @@
 #include <core/console.h>
 #include <core/container.h>
 #include <core/sched.h>
+#include <core/virtual_memory.h>
+
 #ifdef MULTI_SCHEDULER
+
 struct cpu cpus[NCPU];
 static void scheduler_simple(struct scheduler *this);
 static struct proc *alloc_pcb_simple(struct scheduler *this);
@@ -39,6 +42,22 @@ static inline struct context *get_context(struct proc *p) {
 static inline struct context **get_context_address(struct proc *p) {
     return p->is_scheduler ? &((struct container *)p->cont)->scheduler.context[cpuid()]
                            : &p->context;
+}
+
+void yield_scheduler(struct scheduler *this) {
+    if (this == &root_container->scheduler)
+        return;
+    acquire_ptable_lock(this->parent);
+    thiscpu()->proc->state = RUNNABLE;
+    thiscpu()->scheduler = this->parent;
+    assert(holding_spinlock(&this->ptable.lock));
+
+    release_ptable_lock(this);
+    // swtch(get_context_address(this), get_context(this->parent));
+    sched_simple(this->parent);
+    acquire_ptable_lock(this);
+    release_ptable_lock(this->parent);
+    thiscpu()->scheduler = this;
 }
 
 NO_RETURN void scheduler_simple(struct scheduler *this) {
@@ -117,22 +136,6 @@ static struct proc *alloc_pcb_simple(struct scheduler *this) {
     release_ptable_lock(this);
 
     return p;
-}
-
-void yield_scheduler(struct scheduler *this) {
-    if (this == &root_container->scheduler)
-        return;
-    acquire_ptable_lock(this->parent);
-    thiscpu()->proc->state = RUNNABLE;
-    thiscpu()->scheduler = this->parent;
-    assert(holding_spinlock(&this->ptable.lock));
-
-    release_ptable_lock(this);
-    // swtch(get_context_address(this), get_context(this->parent));
-    sched_simple(this->parent);
-    acquire_ptable_lock(this);
-    release_ptable_lock(this->parent);
-    thiscpu()->scheduler = this;
 }
 
 #endif

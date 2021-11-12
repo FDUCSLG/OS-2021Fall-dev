@@ -1,7 +1,9 @@
+#include <common/string.h>
 #include <core/arena.h>
 #include <core/container.h>
 #include <core/physical_memory.h>
 #include <core/sched.h>
+#include <core/virtual_memory.h>
 
 struct container *root_container = 0;
 static Arena arena;
@@ -18,7 +20,7 @@ static NO_RETURN void container_entry() {
     }
 
     enter_scheduler();
-    PANIC("scheduler should not return\n");
+    PANIC("scheduler should not return");
 }
 struct container *alloc_container(bool root) {
     struct container *c = 0;
@@ -57,9 +59,9 @@ struct container *alloc_container(bool root) {
         sp += KSTACKSIZE;
 
         sp -= sizeof(*(p->context));
-        c->scheduler.context[i] = sp;
+        c->scheduler.context[i] = (struct context *)sp;
         memset(c->scheduler.context[i], 0, sizeof(*c->scheduler.context[i]));
-        c->scheduler.context[i]->lr0 = container_entry;
+        c->scheduler.context[i]->lr0 = (u64)container_entry;
     }
     // p->context = (struct context *)sp;
     // memset(p->context, 0, sizeof(*(p->context)));
@@ -85,7 +87,6 @@ void init_container() {
     root_container->p = 0;
     root_container->scheduler.op = &simple_op;
     root_container->scheduler.cont = root_container;
-    return;
 }
 
 void *alloc_resource(struct container *this, struct proc *p, resource_t resource) {
@@ -95,7 +96,7 @@ void *alloc_resource(struct container *this, struct proc *p, resource_t resource
         case MEMORY: break;
         case PID:
             if (this->scheduler.pid == NPID) {
-                return -1;
+                return (void *)-1;
             }
             pid = ++this->scheduler.pid;
             this->pmap[pid].valid = true;
@@ -132,7 +133,7 @@ ret:
     return c;
 }
 
-/* 
+/*
  * Add containers
  */
 void container_test_init() {

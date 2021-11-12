@@ -3,6 +3,7 @@
 #include <core/proc.h>
 #include <core/sched.h>
 #include <core/virtual_memory.h>
+
 #ifndef MULTI_SCHEDULER
 struct {
     struct proc proc[NPROC];
