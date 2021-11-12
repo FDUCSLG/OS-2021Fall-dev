@@ -1,6 +1,5 @@
 #include <aarch64/intrinsic.h>
 #include <core/console.h>
-#include <core/proc.h>
 #include <driver/base.h>
 #include <driver/clock.h>
 #include <driver/interrupt.h>
@@ -51,7 +50,6 @@ void interrupt_global_handler() {
         source ^= IRQ_SRC_CNTPNSIRQ;
 
         invoke_clock_handler();
-        yield();
     }
 
     if (source & IRQ_SRC_GPU) {

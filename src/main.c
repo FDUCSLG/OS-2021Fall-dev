@@ -39,6 +39,7 @@ void init_system_once() {
 void hello() {
     printf("CPU %d: HELLO!\n", cpuid());
     reset_clock(1000);
+    yield();
 }
 
 void init_system_per_cpu() {

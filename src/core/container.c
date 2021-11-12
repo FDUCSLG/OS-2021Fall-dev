@@ -142,4 +142,5 @@ void container_test_init() {
     do_cont_test = true;
     add_loop_test(1);
     c = spawn_container(root_container, &simple_op);
+    assert(c != NULL);
 }
