@@ -22,40 +22,26 @@ void trap_global_handler(Trapframe *frame) {
 
     i32 src = get32(IRQ_SRC_CORE(cpuid()));
 
-    if (src & IRQ_CNTPNSIRQ) {
-        // printf("IRQ_CNTPNSIRQ\n");
-        set_clock_handler(yield);
-        invoke_clock_handler();
-        reset_clock(1000);
-    }
-    if (src & IRQ_GPU){
-        if (get32(IRQ_PENDING_1) & AUX_INT) uart_intr();
-        else if (get32(IRQ_PENDING_2) & VC_ARASANSDIO_INT) sd_intr();
-        else PANIC("trap: unexpected irq.\n");
-    }
-    else {
+    switch (ec) {
+        case ESR_EC_UNKNOWN: {
+            if (ir)
+                PANIC("unknown error");
+            else
+                interrupt_global_handler();
+        } break;
 
-        switch (ec) {
-            case ESR_EC_UNKNOWN: {
-                if (ir)
-                    PANIC("unknown error");
-                else
-                    interrupt_global_handler();
-            } break;
+        case ESR_EC_SVC64: {
+            arch_reset_esr();
+            frame->x[0] = syscall_dispatch(frame);
 
-            case ESR_EC_SVC64: {
-                arch_reset_esr();
-                frame->x[0] = syscall_dispatch(frame);
+            // TODO: warn if `iss` is not zero.
+            (void)iss;
+        } break;
 
-                // TODO: warn if `iss` is not zero.
-                (void)iss;
-            } break;
+        default: {
+            // TODO: should exit current process here.
+            // exit(1);
 
-            default: {
-                // TODO: should exit current process here.
-                // exit(1);
-
-            }
         }
     }
 

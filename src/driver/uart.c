@@ -47,7 +47,7 @@ void uart_put_char(char c) {
         uart_put_char('\r');
 }
 
-char
+void
 uart_intr()
 {
     for (int stat; !((stat = get32(AUX_MU_IIR_REG)) & 1); )

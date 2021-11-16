@@ -24,6 +24,10 @@
 #include <common/buf.h>
 #include <common/spinlock.h>
 #include <common/defines.h>
+#include <driver/interrupt.h>
+#include <driver/uart.h>
+#include <driver/clock.h>
+
 // Private functions.
 static void sd_start(struct buf* b);
 static void sd_delayus(u32 cnt);
@@ -521,6 +525,10 @@ sd_init()
 
     sdInit();
     assert(sdCard.init);
+    
+    set_interrupt_handler(IRQ_AUX,uart_intr);
+    set_interrupt_handler(IRQ_ARASANSDIO,sd_intr);
+    set_clock_handler(yield);
 
     /*
      * Read and parse 1st block (MBR) and collect whatever
@@ -678,8 +686,8 @@ sdrw(struct buf* b)
         sd_start(buflist_front(&sdque));
     }
 
-
     while (1) {
+        // printf("here\n");
         sleep((void*)b, &sdlock);
         //flags = 100 -> 010
         if ((b->flags & B_VALID) && (~b->flags & B_DIRTY)) {
@@ -710,9 +718,8 @@ sd_test()
         b[0].blockno = i;
 
         
-
         sdrw(&b[0]);
-        // printf("here\n");
+        printf("here\n");
         // Write some value.
         b[i].flags = B_DIRTY;
         b[i].blockno = i;

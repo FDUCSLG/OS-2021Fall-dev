@@ -109,11 +109,13 @@ static struct proc *alloc_pcb_simple() {
 
 static void proc_wakeup(void* chan)
 {
-    for (struct proc* p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
+    acquire_spinlock(&ptable.lock);
+    for (struct proc* p = ptable.proc; p < ptable.proc + NPROC; p++) {
         if (p->state == SLEEPING && p->chan == chan) {
             p->state = RUNNABLE;
         }
     }
+    release_spinlock(&ptable.lock);
 }
 
 static void proc_sleep(void* chan, struct SpinLock* lk)
@@ -128,7 +130,7 @@ static void proc_sleep(void* chan, struct SpinLock* lk)
     // }
 
     if (lk != &ptable.lock) {
-        simple_scheduler.op->acquire_lock();
+        acquire_spinlock(&ptable.lock);
         release_spinlock(lk);
     }
 
@@ -139,7 +141,7 @@ static void proc_sleep(void* chan, struct SpinLock* lk)
     p->chan = 0;
 
     if (lk != &ptable.lock) {
-        simple_scheduler.op->release_lock();
+        release_spinlock(&ptable.lock);
         acquire_spinlock(lk);
     }
 }

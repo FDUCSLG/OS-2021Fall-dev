@@ -113,29 +113,23 @@ void
 sleep(void* chan, struct SpinLock* lk)
 {
     /* TODO: Your code here. */
-    simple_scheduler.op->sleep(chan,lk);
+    sched_sleep(chan,lk);
 }
 
 void
 wakeup(void* chan)
 {
     /* TODO: Your code here. */
-
-    simple_scheduler.op->acquire_lock();
-
-    simple_scheduler.op->wakeup(chan);
-
-    simple_scheduler.op->release_lock();
+    sched_wakeup(chan);
 }
 
 void
 yield()
 {
-    simple_scheduler.op->acquire_lock();
+    acquire_sched_lock();
     struct proc* p = thiscpu()->proc;
     p->state = RUNNABLE;
-    // printf("in yield\n");
     sched();
-    simple_scheduler.op->release_lock();
+    release_sched_lock();
 }
 

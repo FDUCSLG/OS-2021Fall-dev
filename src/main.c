@@ -43,7 +43,6 @@ void hello() {
 void init_system_per_cpu() {
     init_clock();
     // set_clock_handler(hello);
-    set_clock_handler(yield);
     init_trap();
 
     // arch_enable_trap();
@@ -76,13 +75,14 @@ NO_RETURN void main() {
     //     delay_us(10000);
 
     // PANIC("TODO: add %s. CPUID = %zu", "scheduler", cpuid());
+    
     if (cpuid() == 0) {
         sd_init();
         spawn_init_process();
         spawn_init_process();
         spawn_init_process();
         spawn_init_process();
-        enter_scheduler();
+        enter_scheduler();        
     } else {
         enter_scheduler();
     }
