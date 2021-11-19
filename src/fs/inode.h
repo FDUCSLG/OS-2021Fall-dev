@@ -4,7 +4,7 @@
 #include <common/list.h>
 #include <common/rc.h>
 #include <common/spinlock.h>
-#include <fs/block.h>
+#include <fs/cache.h>
 #include <fs/fs.h>
 
 #define ROOT_INODE_NO 1

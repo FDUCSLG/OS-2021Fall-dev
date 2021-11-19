@@ -1,11 +1,12 @@
 #pragma once
 
 #include <common/defines.h>
-#include <fs/block.h>
 
 /**
  * this file contains on-disk representations of primitives in our filesystem.
  */
+
+#define BLOCK_SIZE 512
 
 #define INODE_NUM_DIRECT   12
 #define INODE_NUM_INDIRECT (BLOCK_SIZE / sizeof(u32))

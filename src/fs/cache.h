@@ -1,13 +1,22 @@
 #pragma once
 
 #include <common/defines.h>
-#include <fs/log.h>
-
-#define BLOCK_SIZE 512
+#include <common/list.h>
+#include <common/rc.h>
+#include <core/sleeplock.h>
+#include <fs/fs.h>
 
 typedef struct {
+    SleepLock lock;
+    ListNode node;
+    RefCount rc;
+    usize block_no;
     u8 data[BLOCK_SIZE];
 } Block;
+
+typedef struct {
+    usize id;
+} OpContext;
 
 typedef struct BlockCache {
     // begin a new atomic operation and initialize `ctx`.
@@ -40,3 +49,7 @@ typedef struct BlockCache {
     // if `ctx` is not NULL, the actual writeback is delayed until `end_op`.
     void (*sync)(OpContext *ctx, Block *block);
 } BlockCache;
+
+extern BlockCache bcache;
+
+void init_bcache(const SuperBlock *sblock);
