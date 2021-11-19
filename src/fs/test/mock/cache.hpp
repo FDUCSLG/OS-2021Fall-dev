@@ -233,13 +233,13 @@ struct MockBlockCache {
 
     void begin_op(OpContext *ctx) {
         std::unique_lock lock(mutex);
-        ctx->id = oracle.fetch_add(1);
-        scoreboard[ctx->id] = false;
+        ctx->ts = oracle.fetch_add(1);
+        scoreboard[ctx->ts] = false;
     }
 
     void end_op(OpContext *ctx) {
         std::unique_lock lock(mutex);
-        scoreboard[ctx->id] = true;
+        scoreboard[ctx->ts] = true;
 
         // is it safe to checkpoint now?
         bool do_checkpoint = true;
@@ -268,7 +268,7 @@ struct MockBlockCache {
             cv.notify_all();
         } else {
             // if there are other running atomic operations, just wait for them.
-            cv.wait(lock, [&] { return ctx->id <= top_oracle.load(); });
+            cv.wait(lock, [&] { return ctx->ts <= top_oracle.load(); });
         }
     }
 

@@ -38,7 +38,7 @@ static INLINE void set_flag(bool *flag) {
 void init_inodes(const SuperBlock *_sblock, const BlockCache *_cache) {
     ArenaPageAllocator allocator = {.allocate = kalloc, .free = kfree};
 
-    init_spinlock(&lock, "InodeTree");
+    init_spinlock(&lock, "inode tree");
     init_list_node(&head);
     sblock = _sblock;
     cache = _cache;
@@ -49,7 +49,7 @@ void init_inodes(const SuperBlock *_sblock, const BlockCache *_cache) {
 
 // initialize in-memory inode.
 static void init_inode(Inode *inode) {
-    init_spinlock(&inode->lock, "Inode");
+    init_spinlock(&inode->lock, "inode");
     init_rc(&inode->rc);
     init_list_node(&inode->node);
     inode->inode_no = 0;
