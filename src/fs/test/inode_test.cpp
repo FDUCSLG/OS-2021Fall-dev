@@ -27,8 +27,6 @@ int test_alloc() {
 
     assert_eq(mock.count_inodes(), 1);
     mock.end_op(ctx);
-
-    mock.fence();
     assert_eq(mock.count_inodes(), 2);
 
     auto *p = inodes.get(ino);
@@ -41,8 +39,6 @@ int test_alloc() {
 
     assert_eq(mock.count_inodes(), 2);
     mock.end_op(ctx);
-
-    mock.fence();
     assert_eq(mock.count_inodes(), 1);
 
     return 0;
@@ -65,7 +61,6 @@ int test_sync() {
     inodes.put(ctx, p);
     mock.end_op(ctx);
 
-    mock.fence();
     auto *q = mock.inspect(1);
     assert_eq(q->type, INODE_DIRECTORY);
     assert_eq(q->major, 0x19);
@@ -103,8 +98,6 @@ int test_touch() {
 
         assert_eq(mock.count_inodes(), i - 1);
         mock.end_op(ctx);
-
-        mock.fence();
         assert_eq(mock.count_inodes(), i);
     }
 
@@ -125,8 +118,6 @@ int test_touch() {
 
         assert_eq(mock.count_inodes(), n);
         mock.end_op(ctx);
-
-        mock.fence();
         assert_eq(mock.count_inodes(), n - 1);
     }
 
@@ -138,15 +129,11 @@ int test_touch() {
     inodes.unlock(q);
     assert_eq(mock.count_inodes(), n);
     mock.end_op(ctx);
-
-    mock.fence();
     assert_eq(mock.count_inodes(), n + 1);
 
     mock.begin_op(ctx);
     inodes.put(ctx, q);
     mock.end_op(ctx);
-
-    mock.fence();
     assert_eq(mock.count_inodes(), n);
 
     for (usize i = 3; i < mock.num_inodes; i += 2, n--) {
@@ -159,8 +146,6 @@ int test_touch() {
         inodes.put(ctx, q);
         assert_eq(mock.count_inodes(), n);
         mock.end_op(ctx);
-
-        mock.fence();
         assert_eq(mock.count_inodes(), n - 1);
     }
 
@@ -172,8 +157,6 @@ int test_share() {
     mock.begin_op(ctx);
     usize ino = inodes.alloc(ctx, INODE_REGULAR);
     mock.end_op(ctx);
-
-    mock.fence();
     assert_eq(mock.count_inodes(), 2);
 
     auto *p = inodes.get(ino);
@@ -186,8 +169,6 @@ int test_share() {
     inodes.put(ctx, p);
     assert_eq(q->rc.count, 2);
     mock.end_op(ctx);
-
-    mock.fence();
     assert_eq(mock.count_inodes(), 2);
 
     mock.begin_op(ctx);
@@ -197,8 +178,6 @@ int test_share() {
     inodes.put(ctx, r);
     assert_eq(mock.count_inodes(), 2);
     mock.end_op(ctx);
-
-    mock.fence();
     assert_eq(mock.count_inodes(), 1);
 
     return 0;
@@ -222,7 +201,6 @@ int test_small_file() {
     assert_eq(mock.count_blocks(), 0);
     mock.end_op(ctx);
 
-    mock.fence();
     auto *q = mock.inspect(ino);
     assert_eq(q->indirect, 0);
     assert_ne(q->addrs[0], 0);
@@ -243,7 +221,6 @@ int test_small_file() {
     inodes.clear(ctx, p);
     mock.end_op(ctx);
 
-    mock.fence();
     q = mock.inspect(ino);
     assert_eq(q->indirect, 0);
     assert_eq(q->addrs[0], 0);
@@ -255,8 +232,6 @@ int test_small_file() {
     mock.begin_op(ctx);
     inodes.put(ctx, p);
     mock.end_op(ctx);
-
-    mock.fence();
     assert_eq(mock.count_inodes(), 1);
 
     return 0;
@@ -285,8 +260,6 @@ int test_large_file() {
         auto *q = mock.inspect(ino);
         assert_eq(q->num_bytes, i);
         mock.end_op(ctx);
-
-        mock.fence();
         assert_eq(q->num_bytes, i + n);
     }
     inodes.unlock(p);
@@ -308,8 +281,6 @@ int test_large_file() {
     inodes.clear(ctx, p);
     inodes.unlock(p);
     mock.end_op(ctx);
-
-    mock.fence();
     assert_eq(mock.count_inodes(), 2);
     assert_eq(mock.count_blocks(), 0);
 
@@ -323,7 +294,6 @@ int test_large_file() {
     mock.end_op(ctx);
     inodes.unlock(p);
 
-    mock.fence();
     auto *q = mock.inspect(ino);
     assert_eq(q->num_bytes, max_size);
 
@@ -345,7 +315,6 @@ int test_large_file() {
     inodes.put(ctx, p);
     mock.end_op(ctx);
 
-    mock.fence();
     assert_eq(mock.count_inodes(), 1);
     assert_eq(mock.count_blocks(), 0);
 
@@ -362,8 +331,6 @@ int test_dir() {
     ino[4] = inodes.alloc(ctx, INODE_REGULAR);
     assert_eq(mock.count_inodes(), 1);
     mock.end_op(ctx);
-
-    mock.fence();
     assert_eq(mock.count_inodes(), 5);
 
     Inode *p[5];
@@ -382,7 +349,6 @@ int test_dir() {
     assert_eq(inodes.lookup(p[0], "fudan", NULL), ino[1]);
     mock.end_op(ctx);
 
-    mock.fence();
     assert_eq(inodes.lookup(p[0], "fudan", NULL), ino[1]);
     assert_eq(inodes.lookup(p[0], "sjtu", NULL), 0);
     assert_eq(inodes.lookup(p[0], "pku", NULL), 0);
@@ -400,7 +366,6 @@ int test_dir() {
     inodes.sync(ctx, p[4], true);
     mock.end_op(ctx);
 
-    mock.fence();
     for (usize i = 1; i < 5; i++) {
         q = mock.inspect(ino[i]);
         assert_eq(q->num_links, 1);
@@ -432,7 +397,6 @@ int test_dir() {
     assert_eq(inodes.lookup(p[1], "bob", NULL), 0);
     mock.end_op(ctx);
 
-    mock.fence();
     assert_eq(q->addrs[0], 0);
     assert_eq(mock.count_inodes(), 5);
     assert_ne(mock.count_blocks(), 0);
@@ -442,8 +406,6 @@ int test_dir() {
         inodes.unlock(p[i]);
         inodes.put(ctx, p[i]);
         mock.end_op(ctx);
-
-        mock.fence();
         assert_eq(mock.count_inodes(), (i < 2 ? 5 : 4));
     }
 

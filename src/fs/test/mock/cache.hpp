@@ -335,12 +335,6 @@ struct MockBlockCache {
             store(mblk[i], sblk[i]);
         }
     }
-
-    void fence() {
-        std::unique_lock lock(mutex);
-        usize current = oracle.load() - 1;
-        cv.wait(lock, [&] { return current <= top_oracle.load(); });
-    }
 };
 
 namespace {
