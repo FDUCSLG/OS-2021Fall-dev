@@ -219,7 +219,7 @@ static usize inode_map(OpContext *ctx, Inode *inode, usize offset, bool *modifie
 
     if (index < INODE_NUM_DIRECT) {
         if (entry->addrs[index] == 0) {
-            entry->addrs[index] = cache->alloc(ctx);
+            entry->addrs[index] = (u32)cache->alloc(ctx);
             set_flag(modified);
         }
 
@@ -230,7 +230,7 @@ static usize inode_map(OpContext *ctx, Inode *inode, usize offset, bool *modifie
     assert(index < INODE_NUM_INDIRECT);
 
     if (entry->indirect == 0) {
-        entry->indirect = cache->alloc(ctx);
+        entry->indirect = (u32)cache->alloc(ctx);
         set_flag(modified);
     }
 
@@ -238,7 +238,7 @@ static usize inode_map(OpContext *ctx, Inode *inode, usize offset, bool *modifie
     u32 *addrs = get_addrs(block);
 
     if (addrs[index] == 0) {
-        addrs[index] = cache->alloc(ctx);
+        addrs[index] = (u32)cache->alloc(ctx);
         cache->sync(ctx, block);
         set_flag(modified);
     }
@@ -291,7 +291,7 @@ static void inode_write(OpContext *ctx, Inode *inode, u8 *src, usize offset, usi
     }
 
     if (end > entry->num_bytes) {
-        entry->num_bytes = end;
+        entry->num_bytes = (u16)end;
         modified = true;
     }
     if (modified)
@@ -329,7 +329,7 @@ static usize inode_insert(OpContext *ctx, Inode *inode, const char *name, usize 
             break;
     }
 
-    dentry.inode_no = inode_no;
+    dentry.inode_no = (u16)inode_no;
     strncpy(dentry.name, name, FILE_NAME_MAX_LENGTH);
     inode_write(ctx, inode, (u8 *)&dentry, offset, sizeof(dentry));
     return offset / sizeof(dentry);

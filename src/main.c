@@ -19,7 +19,7 @@ void init_system_once() {
 
     // clear BSS section.
     extern char edata[], end[];
-    memset(edata, 0, end - edata);
+    memset(edata, 0, (usize)(end - edata));
 
     init_interrupt();
     init_char_device();

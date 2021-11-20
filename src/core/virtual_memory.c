@@ -15,7 +15,6 @@ PTEntriesPtr pgdir_init() {
 }
 
 PTEntriesPtr pgdir_walk(PTEntriesPtr pgdir, void *vak, int alloc) {
-
     return vmt.pgdir_walk(pgdir, vak, alloc);
 }
 
@@ -168,7 +167,6 @@ void my_vm_free(PTEntriesPtr pgdir) {
  */
 
 int my_uvm_map(PTEntriesPtr pgdir, void *va, usize sz, u64 pa) {
-
     void *ptr = (void *)round_down((u64)va, PAGE_SIZE);
     void *end = (void *)((u64)va + sz);
     pa = round_down((u64)pa, PAGE_SIZE);
@@ -214,7 +212,7 @@ int my_uvm_alloc(PTEntriesPtr pgdir, usize base, usize stksz, usize oldsz, usize
         }
     }
 
-    return newsz;
+    return (int)newsz;
 }
 
 /*
@@ -226,7 +224,7 @@ int my_uvm_alloc(PTEntriesPtr pgdir, usize base, usize stksz, usize oldsz, usize
 
 int my_uvm_dealloc(PTEntriesPtr pgdir, usize base, usize oldsz, usize newsz) {
     if (newsz >= oldsz || newsz < base)
-        return oldsz;
+        return (int)oldsz;
 
     for (usize a = round_up(newsz, PAGE_SIZE); a < oldsz; a += PAGE_SIZE) {
         PTEntriesPtr page_content_ptr = pgdir_walk(pgdir, (void *)a, 0);
@@ -243,7 +241,7 @@ int my_uvm_dealloc(PTEntriesPtr pgdir, usize base, usize oldsz, usize newsz) {
         // }
     }
 
-    return newsz;
+    return (int)newsz;
 }
 
 /*

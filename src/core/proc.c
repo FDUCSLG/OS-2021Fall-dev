@@ -71,7 +71,7 @@ void spawn_init_process() {
     }
     memset(r, 0, PAGE_SIZE);
     uvm_map(p->pgdir, (void *)0, PAGE_SIZE, K2P(r));
-    memmove(r, (void *)icode, eicode - icode);
+    memmove(r, (void *)icode, (usize)(eicode - icode));
 
     memset(p->tf, 0, sizeof(*(p->tf)));
     p->tf->spsr = 0;
@@ -162,7 +162,7 @@ void add_loop_test(int times) {
         }
         memset(r, 0, PAGE_SIZE);
         uvm_map(p->pgdir, (void *)0, PAGE_SIZE, K2P(r));
-        memmove(r, (void *)loop_start, loop_end - loop_start);
+        memmove(r, (void *)loop_start, (usize)(loop_end - loop_start));
 
         memset(p->tf, 0, sizeof(*(p->tf)));
         p->tf->spsr = 0;

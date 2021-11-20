@@ -55,7 +55,7 @@ void interrupt_global_handler() {
     if (source & IRQ_SRC_GPU) {
         source ^= IRQ_SRC_GPU;
 
-        u32 map = device_get_u32(IRQ_PENDING_1) | (((u64)device_get_u32(IRQ_PENDING_2)) << 32);
+        u64 map = device_get_u32(IRQ_PENDING_1) | (((u64)device_get_u32(IRQ_PENDING_2)) << 32);
         for (usize i = 0; i < NUM_IRQ_TYPES; i++) {
             if ((map >> i) & 1) {
                 if (ctx.handler[i])
