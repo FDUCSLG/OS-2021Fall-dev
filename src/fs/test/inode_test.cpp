@@ -2,8 +2,6 @@ extern "C" {
 #include <fs/inode.h>
 }
 
-#include <thread>
-
 #include "assert.hpp"
 #include "mock/cache.hpp"
 #include "pause.hpp"

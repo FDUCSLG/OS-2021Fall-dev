@@ -2,35 +2,41 @@
 
 #include <common/defines.h>
 #include <common/list.h>
-#include <common/rc.h>
 #include <core/sleeplock.h>
 #include <fs/block_device.h>
 #include <fs/fs.h>
 
-#define MAX_OP_SIZE 12
+// maximum number of distinct blocks that one atomic operation can hold.
+#define OP_MAX_NUM_BLOCKS 10
 
 typedef struct {
-    SleepLock lock;
-    ListNode node;
-    RefCount rc;
+    // accesses to the following 4 members should be guarded by the lock
+    // of the block cache.
     usize block_no;
-    bool valid;
+    ListNode node;
+    bool acquired;  // is the block already acquired by another thread?
+    bool pinned;    // if a block is pinned, it should not be evicted from the cache.
+
+    SleepLock lock;  // this lock protects `valid` and `data`.
+    bool valid;      // is the content of block loaded from disk?
     u8 data[BLOCK_SIZE];
 } Block;
 
+// `OpContext` represents an atomic operation.
+// see `begin_op` and `end_op`.
 typedef struct {
-    usize ts;
-    usize num_blocks;
-    usize block_no[MAX_OP_SIZE];
+    usize ts;                           // the timestamp/identifier allocated by the block cache.
+    usize num_blocks;                   // number of blocks in `block_no` array.
+    usize block_no[OP_MAX_NUM_BLOCKS];  // blocks associated with this atomic operation.
 } OpContext;
 
 typedef struct BlockCache {
-    // read the block at `block_no` from disk, and lock the block, then
-    // incrementing its reference count by one.
+    // read the content of block at `block_no` from disk, and lock the block, then
+    // increment its reference count by one.
     Block *(*acquire)(usize block_no);
 
     // unlock `block` and decrement its reference count by one.
-    // `release` does not have to write the block back to disk.
+    // `release` does not have to write the block content back to disk.
     void (*release)(Block *block);
 
     // begin a new atomic operation and initialize `ctx`.
@@ -48,16 +54,19 @@ typedef struct BlockCache {
     // this is very dangerous, since it may break atomicity of concurrent atomic
     // operations. YOU SHOULD USE THIS MODE WITH CARE.
     // if `ctx` is not NULL, the actual writeback is delayed until `end_op`.
+    //
+    // NOTE: the caller must hold the lock of `block`.
     void (*sync)(OpContext *ctx, Block *block);
 
-    // NOTE: every block on disk has a bit in bitmap area, including blocks inside
-    // bitmap!
+    // NOTE for bitmap: every block on disk has a bit in bitmap area, including
+    // blocks inside bitmap!
+    //
     // usually, MBR block, super block, inode blocks, log blocks and bitmap blocks
     // are preallocated on disk, i.e. those bits for them are already set in bitmap.
     // therefore when we allocate a new block, it usually returns a data block.
-    // nobody can prevent you freeing a non-data block :)
+    // in fact, nobody can prevent you freeing a non-data block :)
 
-    // allocate a new zero-initialized block.
+    // allocate a new zero-initialized block, by searching bitmap for a free block.
     // block number is returned.
     usize (*alloc)(OpContext *ctx);
 

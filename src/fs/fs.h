@@ -8,6 +8,9 @@
 
 #define BLOCK_SIZE 512
 
+// maximum number of distinct block numbers can be recorded in the log header.
+#define LOG_MAX_SIZE ((BLOCK_SIZE - sizeof(usize)) / sizeof(usize))
+
 #define INODE_NUM_DIRECT   12
 #define INODE_NUM_INDIRECT (BLOCK_SIZE / sizeof(u32))
 #define INODE_PER_BLOCK    (BLOCK_SIZE / sizeof(InodeEntry))
@@ -24,6 +27,8 @@
 #define INODE_DEVICE    3
 
 typedef u16 InodeType;
+
+#define BITS_PER_BLOCK (BLOCK_SIZE * 8)
 
 // disk layout:
 // [ MBR block | super block | log blocks | inode blocks | bitmap blocks | data blocks ]
@@ -61,3 +66,8 @@ typedef struct {
     u16 inode_no;
     char name[FILE_NAME_MAX_LENGTH];
 } DirEntry;
+
+typedef struct {
+    usize size;
+    usize block_no[LOG_MAX_SIZE];
+} LogHeader;
