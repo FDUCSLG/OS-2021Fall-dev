@@ -25,6 +25,7 @@ typedef struct {
 // `OpContext` represents an atomic operation.
 // see `begin_op` and `end_op`.
 typedef struct {
+    SpinLock lock;
     usize ts;                           // the timestamp/identifier allocated by the block cache.
     usize num_blocks;                   // number of blocks in `block_no` array.
     usize block_no[OP_MAX_NUM_BLOCKS];  // blocks associated with this atomic operation.
@@ -44,10 +45,6 @@ typedef struct BlockCache {
     // end of atomic operation by `end_op`.
     void (*begin_op)(OpContext *ctx);
 
-    // end the atomic operation managed by `ctx`.
-    // it returns when all associated blocks are synchronized to disk.
-    void (*end_op)(OpContext *ctx);
-
     // synchronize the content of `block` to disk.
     // `ctx` can be NULL, which indicates this operation does not belong to any
     // atomic operation and it immediately writes all content back to disk. However
@@ -57,6 +54,10 @@ typedef struct BlockCache {
     //
     // NOTE: the caller must hold the lock of `block`.
     void (*sync)(OpContext *ctx, Block *block);
+
+    // end the atomic operation managed by `ctx`.
+    // it returns when all associated blocks are synchronized to disk.
+    void (*end_op)(OpContext *ctx);
 
     // NOTE for bitmap: every block on disk has a bit in bitmap area, including
     // blocks inside bitmap!

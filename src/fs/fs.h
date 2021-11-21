@@ -68,6 +68,6 @@ typedef struct {
 } DirEntry;
 
 typedef struct {
-    usize size;
+    usize num_blocks;
     usize block_no[LOG_MAX_SIZE];
 } LogHeader;

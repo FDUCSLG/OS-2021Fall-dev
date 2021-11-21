@@ -9,14 +9,19 @@
 static const SuperBlock *sblock;
 static const BlockDevice *device;
 
-// TODO: add comments here.
-static SpinLock lock;
-static Arena arena;
-static ListNode head;
-static usize ts_oracle;
-static usize log_start, log_size, log_used;
-static usize op_count;
-static LogHeader header;
+static SpinLock lock;     // protects block cache.
+static Arena arena;       // memory pool for `Block` struct.
+static ListNode head;     // all allocated in-memory block list.
+static LogHeader header;  // in-memory copy of log header block.
+
+static usize last_allocated_ts;  // last timestamp assigned by a `begin_op`.
+static usize last_persisted_ts;  // last timestamp of atomic operation that is persisted to disk.
+
+static usize log_start;  // the number of block that is next to the log header block.
+static usize log_size;   // maximum number of blocks that can be recorded in log.
+static usize log_used;   // number of entries in log reserved/used by current atomic operations.
+
+static usize op_count;  // number of outstanding atomic operations.
 
 // read the content from disk.
 static INLINE void device_read(Block *block) {
@@ -38,6 +43,8 @@ static INLINE void write_header() {
     device->write(sblock->log_start, (u8 *)&header);
 }
 
+static void replay();
+
 // initialize block cache.
 void init_bcache(const SuperBlock *_sblock, const BlockDevice *_device) {
     sblock = _sblock;
@@ -47,15 +54,18 @@ void init_bcache(const SuperBlock *_sblock, const BlockDevice *_device) {
     init_spinlock(&lock, "block cache");
     init_arena(&arena, sizeof(Block), allocator);
     init_list_node(&head);
-    ts_oracle = 0;
+
+    last_allocated_ts = 0;
+    last_persisted_ts = 0;
+
     log_start = sblock->log_start + 1;
     log_size = MIN(sblock->num_log_blocks - 1, LOG_MAX_SIZE);
     log_used = 0;
+
     op_count = 0;
 
     read_header();
-
-    // TODO: startup recovery.
+    replay();
 }
 
 // initialize a block struct.
@@ -119,29 +129,29 @@ void cache_release(Block *block) {
 
 // see `cache.h`.
 void cache_begin_op(OpContext *ctx) {
-    acquire_spinlock(&lock);
-    while (log_used + OP_MAX_NUM_BLOCKS > log_size) {
-        sleep(&lock, &lock);
-    }
-    log_used += OP_MAX_NUM_BLOCKS;
-    ctx->ts = ++ts_oracle;
-    op_count++;
-    release_spinlock(&lock);
-
+    init_spinlock(&ctx->lock, "atomic operation context");
+    ctx->ts = 0;
     ctx->num_blocks = 0;
     memset(ctx->block_no, 0, sizeof(ctx->block_no));
-}
 
-// see `cache.h`.
-void cache_end_op(OpContext *ctx) {
     acquire_spinlock(&lock);
-    op_count--;
+
+    while (log_used + OP_MAX_NUM_BLOCKS > log_size) {
+        sleep(&log_used, &lock);
+    }
+
+    log_used += OP_MAX_NUM_BLOCKS;
+    ctx->ts = ++last_allocated_ts;
+    op_count++;
+
     release_spinlock(&lock);
 }
 
 // see `cache.h`.
 void cache_sync(OpContext *ctx, Block *block) {
     if (ctx) {
+        acquire_spinlock(&ctx->lock);
+
         usize i = 0;
         for (; i < ctx->num_blocks; i++) {
             if (ctx->block_no[i] == block->block_no)
@@ -150,12 +160,137 @@ void cache_sync(OpContext *ctx, Block *block) {
 
         assert(i < OP_MAX_NUM_BLOCKS);
         ctx->block_no[i] = block->block_no;
+        if (i >= ctx->num_blocks)
+            ctx->num_blocks++;
 
+        release_spinlock(&ctx->lock);
         acquire_spinlock(&lock);
         block->pinned = true;
         release_spinlock(&lock);
     } else
         device_write(block);
+}
+
+// commit all block number records associated with `ctx` into log header.
+//
+// NOTE: the caller must hold the lock of block cache.
+static void commit(OpContext *ctx) {
+    acquire_spinlock(&ctx->lock);
+
+    usize duplicated = 0;
+    for (usize i = 0; i < ctx->num_blocks; i++) {
+        usize block_no = ctx->block_no[i];
+        usize j = 0;
+        for (; j < header.num_blocks; j++) {
+            if (header.block_no[j] == block_no)
+                break;
+        }
+
+        assert(j < log_size);
+        header.block_no[j] = block_no;
+        if (j < header.num_blocks)
+            duplicated++;
+        else
+            header.num_blocks++;
+    }
+
+    release_spinlock(&ctx->lock);
+
+    // blocks reserved but not used are now returned back.
+    log_used -= OP_MAX_NUM_BLOCKS - ctx->num_blocks + duplicated;
+    wakeup(&log_used);
+}
+
+// replay logs if there's any.
+static void replay() {
+    if (header.num_blocks == 0)
+        return;
+
+    // step 3: copy blocks from log to their original locations on disk.
+    // don't forget to un-pin them in block cache.
+    for (usize i = 0; i < header.num_blocks; i++) {
+        Block *src = cache_acquire(log_start + i);
+        Block *dest = cache_acquire(header.block_no[i]);
+        memcpy(dest->data, src->data, BLOCK_SIZE);
+        cache_release(src);
+
+        device_write(dest);
+
+        acquire_spinlock(&lock);
+        dest->pinned = false;
+        release_spinlock(&lock);
+        cache_release(dest);
+    }
+
+    // step 4: now that all blocks are written back, just clear log.
+    header.num_blocks = 0;
+    write_header();
+}
+
+// persist all blocks recorded in log header to disk.
+//
+// NOTE: checkpointing is time consuming, so the caller should NOT hold the
+// lock of block cache.
+static void checkpoint() {
+    // step 1: write blocks into logging area first.
+    for (usize i = 0; i < header.num_blocks; i++) {
+        Block *block = cache_acquire(header.block_no[i]);
+        device->write(log_start + i, block->data);
+        cache_release(block);
+    }
+
+    // step 2: write header block to mark all atomic operations are now
+    // persisted in log.
+    write_header();
+
+    // step 3 & step 4 in `replay`.
+    replay();
+
+    // step 5: wake up all sleeping threads waiting in `end_op`.
+    acquire_spinlock(&lock);
+    last_persisted_ts = last_allocated_ts;
+    release_spinlock(&lock);
+    wakeup(&last_persisted_ts);
+}
+
+// see `cache.h`.
+void cache_end_op(OpContext *ctx) {
+    acquire_spinlock(&lock);
+
+    commit(ctx);
+    op_count--;
+
+    // this will make sure only one thread gets `do_checkpoint == true`.
+    bool do_checkpoint = op_count == 0;
+    usize log_size_copy = log_size;
+
+    if (do_checkpoint) {
+        // this will block all `begin_op`.
+        log_size = 0;
+    } else {
+        while (ctx->ts > last_persisted_ts) {
+            sleep(&last_persisted_ts, &lock);
+        }
+    }
+
+    release_spinlock(&lock);
+
+    if (do_checkpoint) {
+        // at this time:
+        // 1. all atomic operations, except this one, are waiting in `end_op`.
+        //    idealy, no one will invoke `cache_sync`.
+        // 2. all `begin_op` will be blocked because `log_size` is zero.
+        // 3. some read-only operations can continue to acquire the lock of
+        //    block cache.
+
+        checkpoint();
+
+        acquire_spinlock(&lock);
+        log_size = log_size_copy;
+        log_used = 0;
+        release_spinlock(&lock);
+        wakeup(&log_used);
+    }
 }
 
 // see `cache.h`.
@@ -199,8 +334,8 @@ BlockCache bcache = {
     .acquire = cache_acquire,
     .release = cache_release,
     .begin_op = cache_begin_op,
-    .end_op = cache_end_op,
     .sync = cache_sync,
+    .end_op = cache_end_op,
     .alloc = cache_alloc,
     .free = cache_free,
 };
