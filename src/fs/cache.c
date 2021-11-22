@@ -47,6 +47,9 @@ static void replay();
 
 // initialize block cache.
 void init_bcache(const SuperBlock *_sblock, const BlockDevice *_device) {
+    sleep((void *)0x123, (void *)0x456);
+    wakeup((void *)0x789);
+
     sblock = _sblock;
     device = _device;
 
@@ -177,7 +180,7 @@ void cache_sync(OpContext *ctx, Block *block) {
 static void commit(OpContext *ctx) {
     acquire_spinlock(&ctx->lock);
 
-    usize duplicated = 0;
+    usize absorbed = 0;
     for (usize i = 0; i < ctx->num_blocks; i++) {
         usize block_no = ctx->block_no[i];
         usize j = 0;
@@ -189,7 +192,7 @@ static void commit(OpContext *ctx) {
         assert(j < log_size);
         header.block_no[j] = block_no;
         if (j < header.num_blocks)
-            duplicated++;
+            absorbed++;
         else
             header.num_blocks++;
     }
@@ -197,7 +200,8 @@ static void commit(OpContext *ctx) {
     release_spinlock(&ctx->lock);
 
     // blocks reserved but not used are now returned back.
-    log_used -= OP_MAX_NUM_BLOCKS - ctx->num_blocks + duplicated;
+    usize unused = OP_MAX_NUM_BLOCKS - ctx->num_blocks;
+    log_used -= unused + absorbed;
     wakeup(&log_used);
 }
 
@@ -296,12 +300,12 @@ void cache_end_op(OpContext *ctx) {
 // see `cache.h`.
 // hint: you can use `cache_acquire`/`cache_sync` to read/write blocks.
 usize cache_alloc(OpContext *ctx) {
-    for (usize i = 0; i < sblock->num_blocks; i += BITS_PER_BLOCK) {
-        usize block_no = sblock->bitmap_start + (i / BITS_PER_BLOCK);
+    for (usize i = 0; i < sblock->num_blocks; i += BIT_PER_BLOCK) {
+        usize block_no = sblock->bitmap_start + (i / BIT_PER_BLOCK);
         Block *block = cache_acquire(block_no);
 
         BitmapCell *bitmap = (BitmapCell *)block->data;
-        for (usize j = 0; j < BITS_PER_BLOCK && i + j < sblock->num_blocks; j++) {
+        for (usize j = 0; j < BIT_PER_BLOCK && i + j < sblock->num_blocks; j++) {
             if (!bitmap_get(bitmap, j)) {
                 bitmap_set(bitmap, j);
                 cache_sync(ctx, block);
@@ -319,7 +323,7 @@ usize cache_alloc(OpContext *ctx) {
 // see `cache.h`.
 // hint: you can use `cache_acquire`/`cache_sync` to read/write blocks.
 void cache_free(OpContext *ctx, usize block_no) {
-    usize i = block_no / BITS_PER_BLOCK, j = block_no % BITS_PER_BLOCK;
+    usize i = block_no / BIT_PER_BLOCK, j = block_no % BIT_PER_BLOCK;
     Block *block = cache_acquire(sblock->bitmap_start + i);
 
     BitmapCell *bitmap = (BitmapCell *)block->data;

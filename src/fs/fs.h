@@ -28,7 +28,7 @@
 
 typedef u16 InodeType;
 
-#define BITS_PER_BLOCK (BLOCK_SIZE * 8)
+#define BIT_PER_BLOCK (BLOCK_SIZE * 8)
 
 // disk layout:
 // [ MBR block | super block | log blocks | inode blocks | bitmap blocks | data blocks ]

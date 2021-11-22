@@ -3,9 +3,10 @@ extern "C" {
 }
 
 #include "assert.hpp"
-#include "mock/cache.hpp"
 #include "pause.hpp"
 #include "runner.hpp"
+
+#include "mock/cache.hpp"
 
 int test_init() {
     init_inodes(&sblock, &cache);
