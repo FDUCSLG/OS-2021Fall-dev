@@ -1,8 +1,9 @@
 #include <aarch64/intrinsic.h>
+#include <common/arm.h>
 #include <driver/aux.h>
 #include <driver/gpio.h>
+#include <driver/interrupt.h>
 #include <driver/uart.h>
-#include <common/arm.h>
 
 void init_uart() {
     device_put_u32(GPPUD, 0);
@@ -27,6 +28,8 @@ void init_uart() {
     device_put_u32(AUX_MU_IIR_REG, 6);
     // finally, enable receiver and transmitter.
     device_put_u32(AUX_MU_CNTL_REG, 3);
+
+    set_interrupt_handler(IRQ_AUX, uart_intr);
 }
 
 char uart_get_char() {
@@ -47,10 +50,8 @@ void uart_put_char(char c) {
         uart_put_char('\r');
 }
 
-void
-uart_intr()
-{
-    for (int stat; !((stat = get32(AUX_MU_IIR_REG)) & 1); )
+void uart_intr() {
+    for (int stat; !((stat = get32(AUX_MU_IIR_REG)) & 1);)
         if ((stat & 6) == 4)
-            printf("%c",get32(AUX_MU_IO_REG) & 0xFF);
+            printf("%c", get32(AUX_MU_IO_REG) & 0xFF);
 }

@@ -12,7 +12,7 @@ set(compiler_flags "${compiler_warnings} \
     -static -fno-builtin -nostdlib -nostdinc -ffreestanding -nostartfiles \
     -mgeneral-regs-only \
     -MMD -MP \
-    -mlittle-endian -mcmodel=small -mno-outline-atomics \
+    -mlittle-endian -mcmodel=small \
     -mcpu=cortex-a53 -mtune=cortex-a53")
 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${compiler_flags}")

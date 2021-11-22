@@ -6,11 +6,11 @@
 #include <core/physical_memory.h>
 #include <core/proc.h>
 #include <core/sched.h>
+#include <core/sd.h>
 #include <core/trap.h>
 #include <core/virtual_memory.h>
 #include <driver/clock.h>
 #include <driver/interrupt.h>
-#include <core/sd.h>
 
 static SpinLock init_lock = {.locked = 0};
 
@@ -38,14 +38,14 @@ void init_system_once() {
 }
 
 void hello() {
-    printf("CPU %d: HELLO!\n", cpuid());
+    // printf("CPU %d: HELLO!\n", cpuid());
     reset_clock(1000);
     yield();
 }
 
 void init_system_per_cpu() {
     init_clock();
-    // set_clock_handler(hello);
+    set_clock_handler(hello);
     init_trap();
 
     // arch_enable_trap();
@@ -78,13 +78,15 @@ NO_RETURN void main() {
     //     delay_us(10000);
 
     // PANIC("TODO: add %s. CPUID = %zu", "scheduler", cpuid());
-    
+
     if (cpuid() == 0) {
         sd_init();
-        for (int i = 0; i < 5; i++)
-            spawn_init_process();
+        spawn_init_process();
+        for (int i = 0; i < 5; i++) {
+            idle_init();
+        }
         // container_test_init();
-        enter_scheduler();        
+        enter_scheduler();
     } else {
         enter_scheduler();
     }
