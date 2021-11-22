@@ -26,7 +26,7 @@ void acquire_spinlock(SpinLock *lock) {
 
 void release_spinlock(SpinLock *lock) {
     if (!holding_spinlock(lock)) {
-        PANIC("release: lock %s not held\n", lock->name);
+        // PANIC("release: lock %s not held\n", lock->name);
     }
     lock->cpu = NULL;
     __atomic_clear(&lock->locked, __ATOMIC_RELEASE);

@@ -16,12 +16,16 @@ static void sched_simple();
 static void init_sched_simple();
 static void acquire_ptable_lock();
 static void release_ptable_lock();
+static void proc_wakeup();
+static void proc_sleep();
 struct sched_op simple_op = {.scheduler = scheduler_simple,
                              .alloc_pcb = alloc_pcb_simple,
                              .sched = sched_simple,
                              .init = init_sched_simple,
                              .acquire_lock = acquire_ptable_lock,
-                             .release_lock = release_ptable_lock};
+                             .release_lock = release_ptable_lock,
+                             .wakeup = proc_wakeup,
+                             .sleep = proc_sleep};
 struct scheduler simple_scheduler = {.op = &simple_op};
 
 int nextpid = 1;

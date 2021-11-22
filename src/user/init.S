@@ -10,11 +10,14 @@ icode:
     mov     x1, #0
     mov     x2, #0
     svc     #0
-    mov     x8, #SYS_myexit
-    svc     #0
 
 ispin:
     b       ispin
+
+exit:
+    mov     x8, #SYS_myexit
+    svc     #0
+    b exit
 
 init:
     .string "/init\0"
