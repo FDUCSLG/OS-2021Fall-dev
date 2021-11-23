@@ -5,6 +5,7 @@ extern "C" {
 }
 
 #include <atomic>
+#include <functional>
 #include <iomanip>
 #include <mutex>
 #include <random>
@@ -34,6 +35,10 @@ struct MockBlockDevice {
     std::atomic<usize> read_count;
     std::atomic<usize> write_count;
     std::vector<Block> disk;
+
+    using Hook = std::function<void(usize block_no, u8 *buffer)>;
+    Hook on_read;
+    Hook on_write;
 
     void initialize(const SuperBlock &sblock) {
         offline = false;
@@ -101,6 +106,9 @@ struct MockBlockDevice {
         auto &block = disk[block_no];
         std::scoped_lock lock(block.mutex);
 
+        if (on_read)
+            on_read(block_no, buffer);
+
         for (usize i = 0; i < BLOCK_SIZE; i++) {
             buffer[i] = block.data[i];
         }
@@ -116,6 +124,9 @@ struct MockBlockDevice {
 
         auto &block = disk[block_no];
         std::scoped_lock lock(block.mutex);
+
+        if (on_write)
+            on_write(block_no, buffer);
 
         for (usize i = 0; i < BLOCK_SIZE; i++) {
             block.data[i] = buffer[i];

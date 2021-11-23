@@ -19,10 +19,9 @@ void test_read_write() {
 
     auto *b = bcache.acquire(1);
     auto *d = mock.inspect(1);
-    assert_eq(b->acquired, true);
     assert_eq(b->block_no, 1);
-    assert_eq(b->pinned, false);
     assert_eq(b->valid, true);
+
     for (usize i = 0; i < BLOCK_SIZE; i++) {
         assert_eq(b->data[i], d[i]);
     }
@@ -41,12 +40,13 @@ void test_atomic_op() {
 
     OpContext ctx;
     bcache.begin_op(&ctx);
+    bcache.end_op(&ctx);
+
+    bcache.begin_op(&ctx);
 
     usize t = sblock.num_blocks - 1;
     auto *b = bcache.acquire(t);
     assert_eq(b->block_no, t);
-    assert_eq(b->acquired, true);
-    assert_eq(b->pinned, false);
     assert_eq(b->valid, true);
 
     auto *d = mock.inspect(t);
@@ -89,6 +89,112 @@ void test_atomic_op() {
     assert_eq(d2[10], ~v2);
 }
 
+void test_loop_read() {
+    initialize(1, 128);
+
+    constexpr int num_rounds = 10;
+    for (int round = 0; round < num_rounds; round++) {
+        std::vector<Block *> p;
+        p.resize(sblock.num_blocks);
+
+        for (usize i = 0; i < sblock.num_blocks; i++) {
+            p[i] = bcache.acquire(i);
+            assert_eq(p[i]->block_no, i);
+
+            auto *d = mock.inspect(i);
+            for (usize j = 0; j < BLOCK_SIZE; j++) {
+                assert_eq(p[i]->data[j], d[j]);
+            }
+        }
+
+        for (usize i = 0; i < sblock.num_blocks; i++) {
+            assert_eq(p[i]->valid, true);
+            bcache.release(p[i]);
+        }
+    }
+}
+
+void test_reuse() {
+    initialize(1, 500);
+
+    constexpr int num_rounds = 200;
+    constexpr usize blocks[] = {1, 123, 233, 399, 415};
+
+    auto matched = [&](usize bno) {
+        for (usize b : blocks) {
+            if (bno == b)
+                return true;
+        }
+        return false;
+    };
+
+    usize rcnt = 0, wcnt = 0;
+    mock.on_read = [&](usize bno, auto) {
+        if (matched(bno))
+            rcnt++;
+    };
+    mock.on_write = [&](usize bno, auto) {
+        if (matched(bno))
+            wcnt++;
+    };
+
+    for (int round = 0; round < num_rounds; round++) {
+        std::vector<Block *> p;
+        for (usize block_no : blocks) {
+            p.push_back(bcache.acquire(block_no));
+        }
+        for (auto *b : p) {
+            assert_eq(b->valid, true);
+            bcache.release(b);
+        }
+    }
+
+    assert_true(rcnt < 10);
+    assert_eq(wcnt, 0);
+}
+
+void test_resident() {
+    // NOTE: this test may be a little controversial.
+    // the main idea is logging should not pollute block cache in most of time.
+
+    initialize(OP_MAX_NUM_BLOCKS, 500);
+
+    constexpr int num_rounds = 200;
+    constexpr usize blocks[] = {1, 123, 233, 399, 415};
+
+    auto matched = [&](usize bno) {
+        for (usize b : blocks) {
+            if (bno == b)
+                return true;
+        }
+        return false;
+    };
+
+    usize rcnt = 0;
+    mock.on_read = [&](usize bno, auto) {
+        if (matched(bno))
+            rcnt++;
+    };
+
+    for (int round = 0; round < num_rounds; round++) {
+        OpContext ctx;
+        bcache.begin_op(&ctx);
+
+        for (usize block_no : blocks) {
+            auto *b = bcache.acquire(block_no);
+            assert_eq(b->valid, true);
+            bcache.sync(&ctx, b);
+            bcache.release(b);
+        }
+
+        bcache.end_op(&ctx);
+    }
+
+    assert_true(rcnt < 10);
+}
+
+void test_replay() {}
+
 }  // namespace basic
 
 int main() {
@@ -96,6 +202,9 @@ int main() {
         {"init", basic::test_init},
         {"read_write", basic::test_read_write},
         {"atomic_op", basic::test_atomic_op},
+        {"loop_read", basic::test_loop_read},
+        {"reuse", basic::test_reuse},
+        {"resident", basic::test_resident},
     };
     Runner(tests).run();
 

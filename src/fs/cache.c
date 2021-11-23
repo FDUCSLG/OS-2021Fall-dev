@@ -93,10 +93,8 @@ Block *cache_acquire(usize block_no) {
         }
 
         // find a candidate to be evicted.
-        if (!slot && !block->acquired && !block->pinned) {
+        if (!slot && !block->acquired && !block->pinned)
             slot = block;
-            slot->valid = false;
-        }
     }
 
     // when not found and no block can be evicted.
@@ -107,7 +105,10 @@ Block *cache_acquire(usize block_no) {
         merge_list(&head, &slot->node);
     }
 
-    slot->block_no = block_no;
+    if (slot->block_no != block_no) {
+        slot->block_no = block_no;
+        slot->valid = false;
+    }
 
     // NOTE: set `acquired` before releasing cache lock to prevent someone evicting
     // this block in the window between `release` and `acquire`.
