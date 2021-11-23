@@ -47,9 +47,6 @@ static void replay();
 
 // initialize block cache.
 void init_bcache(const SuperBlock *_sblock, const BlockDevice *_device) {
-    sleep((void *)0x123, (void *)0x456);
-    wakeup((void *)0x789);
-
     sblock = _sblock;
     device = _device;
 
@@ -218,9 +215,7 @@ static void replay() {
         Block *dest = cache_acquire(header.block_no[i]);
         memcpy(dest->data, src->data, BLOCK_SIZE);
         cache_release(src);
-
         device_write(dest);
-
         acquire_spinlock(&lock);
         dest->pinned = false;
         release_spinlock(&lock);
@@ -239,9 +234,12 @@ static void replay() {
 static void checkpoint() {
     // step 1: write blocks into logging area first.
     for (usize i = 0; i < header.num_blocks; i++) {
-        Block *block = cache_acquire(header.block_no[i]);
-        device->write(log_start + i, block->data);
-        cache_release(block);
+        Block *src = cache_acquire(header.block_no[i]);
+        Block *dest = cache_acquire(log_start + i);
+        memcpy(dest->data, src->data, BLOCK_SIZE);
+        cache_release(src);
+        device_write(dest);
+        cache_release(dest);
     }
 
     // step 2: write header block to mark all atomic operations are now

@@ -36,12 +36,34 @@ void test_read_write() {
     b = bcache.acquire(1);
 }
 
+void test_atomic_op() {
+    initialize(32, 64);
+
+    OpContext ctx;
+    bcache.begin_op(&ctx);
+
+    usize t = sblock.num_blocks - 1;
+    auto *b = bcache.acquire(t);
+    auto *d = mock.inspect(t);
+    usize v = d[128];
+    assert_eq(b->data[128], v);
+
+    b->data[128] = ~v;
+    bcache.sync(&ctx, b);
+    bcache.release(b);
+
+    assert_eq(d[128], v);
+    bcache.end_op(&ctx);
+    assert_eq(d[128], ~v);
+}
+
 }  // namespace basic
 
 int main() {
     std::vector<Testcase> tests = {
         {"init", basic::test_init},
         {"read_write", basic::test_read_write},
+        {"atomic_op", basic::test_atomic_op},
     };
     Runner(tests).run();
 
