@@ -44,8 +44,13 @@ void test_atomic_op() {
 
     usize t = sblock.num_blocks - 1;
     auto *b = bcache.acquire(t);
+    assert_eq(b->block_no, t);
+    assert_eq(b->acquired, true);
+    assert_eq(b->pinned, false);
+    assert_eq(b->valid, true);
+
     auto *d = mock.inspect(t);
-    usize v = d[128];
+    u8 v = d[128];
     assert_eq(b->data[128], v);
 
     b->data[128] = ~v;
@@ -55,6 +60,33 @@ void test_atomic_op() {
     assert_eq(d[128], v);
     bcache.end_op(&ctx);
     assert_eq(d[128], ~v);
+
+    bcache.begin_op(&ctx);
+
+    auto *b1 = bcache.acquire(t - 1);
+    auto *b2 = bcache.acquire(t - 2);
+    assert_eq(b1->block_no, t - 1);
+    assert_eq(b2->block_no, t - 2);
+
+    auto *d1 = mock.inspect(t - 1);
+    auto *d2 = mock.inspect(t - 2);
+    u8 v1 = d1[500];
+    u8 v2 = d2[10];
+    assert_eq(b1->data[500], v1);
+    assert_eq(b2->data[10], v2);
+
+    b1->data[500] = ~v1;
+    b2->data[10] = ~v2;
+    bcache.sync(&ctx, b1);
+    bcache.release(b1);
+    bcache.sync(&ctx, b2);
+    bcache.release(b2);
+
+    assert_eq(d1[500], v1);
+    assert_eq(d2[10], v2);
+    bcache.end_op(&ctx);
+    assert_eq(d1[500], ~v1);
+    assert_eq(d2[10], ~v2);
 }
 
 }  // namespace basic
