@@ -105,6 +105,7 @@ Block *cache_acquire(usize block_no) {
         slot = alloc_object(&arena);
         assert(slot != NULL);
         init_block(slot);
+        slot->block_no = block_no;
         merge_list(&head, &slot->node);
     }
 

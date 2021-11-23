@@ -14,7 +14,7 @@ static void stub_write(usize block_no, u8 *buffer) {
     mock.write(block_no, buffer);
 }
 
-[[maybe_unused]] static void init_mock(usize log_size, usize num_data_blocks) {
+static void initialize_mock(usize log_size, usize num_data_blocks) {
     sblock.log_start = 2;
     sblock.inode_start = sblock.log_start + 1 + log_size;
     sblock.bitmap_start = sblock.inode_start + 1;
@@ -28,4 +28,9 @@ static void stub_write(usize block_no, u8 *buffer) {
 
     device.read = stub_read;
     device.write = stub_write;
+}
+
+[[maybe_unused]] static void initialize(usize log_size, usize num_data_blocks) {
+    initialize_mock(log_size, num_data_blocks);
+    init_bcache(&sblock, &device);
 }

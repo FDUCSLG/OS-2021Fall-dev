@@ -8,19 +8,17 @@ extern "C" {
 
 #include "mock/cache.hpp"
 
-int test_init() {
+void test_init() {
     init_inodes(&sblock, &cache);
     assert_eq(mock.count_inodes(), 1);
     assert_eq(mock.count_blocks(), 0);
-
-    return 0;
 }
 
 namespace adhoc {
 
 static OpContext _ctx, *ctx = &_ctx;
 
-int test_alloc() {
+void test_alloc() {
     mock.begin_op(ctx);
     usize ino = inodes.alloc(ctx, INODE_REGULAR);
 
@@ -39,11 +37,9 @@ int test_alloc() {
     assert_eq(mock.count_inodes(), 2);
     mock.end_op(ctx);
     assert_eq(mock.count_inodes(), 1);
-
-    return 0;
 }
 
-int test_sync() {
+void test_sync() {
     auto *p = inodes.get(1);
 
     inodes.lock(p);
@@ -65,11 +61,9 @@ int test_sync() {
     assert_eq(q->major, 0x19);
     assert_eq(q->minor, 0x26);
     assert_eq(q->indirect, 0xa817);
-
-    return 0;
 }
 
-int test_touch() {
+void test_touch() {
     auto *p = inodes.get(1);
     inodes.lock(p);
 
@@ -149,10 +143,9 @@ int test_touch() {
     }
 
     inodes.unlock(p);
-    return 0;
 }
 
-int test_share() {
+void test_share() {
     mock.begin_op(ctx);
     usize ino = inodes.alloc(ctx, INODE_REGULAR);
     mock.end_op(ctx);
@@ -178,11 +171,9 @@ int test_share() {
     assert_eq(mock.count_inodes(), 2);
     mock.end_op(ctx);
     assert_eq(mock.count_inodes(), 1);
-
-    return 0;
 }
 
-int test_small_file() {
+void test_small_file() {
     mock.begin_op(ctx);
     usize ino = inodes.alloc(ctx, INODE_REGULAR);
     mock.end_op(ctx);
@@ -232,11 +223,9 @@ int test_small_file() {
     inodes.put(ctx, p);
     mock.end_op(ctx);
     assert_eq(mock.count_inodes(), 1);
-
-    return 0;
 }
 
-int test_large_file() {
+void test_large_file() {
     mock.begin_op(ctx);
     usize ino = inodes.alloc(ctx, INODE_REGULAR);
     mock.end_op(ctx);
@@ -316,11 +305,9 @@ int test_large_file() {
 
     assert_eq(mock.count_inodes(), 1);
     assert_eq(mock.count_blocks(), 0);
-
-    return 0;
 }
 
-int test_dir() {
+void test_dir() {
     usize ino[5] = {1};
 
     mock.begin_op(ctx);
@@ -407,8 +394,6 @@ int test_dir() {
         mock.end_op(ctx);
         assert_eq(mock.count_inodes(), (i < 2 ? 5 : 4));
     }
-
-    return 0;
 }
 
 }  // namespace adhoc
