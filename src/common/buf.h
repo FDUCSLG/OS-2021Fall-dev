@@ -2,7 +2,6 @@
 
 #include <common/defines.h>
 #include <common/string.h>
-#include <common/list.h>
 
 #define BSIZE   512
 
@@ -15,8 +14,7 @@ struct buf {
     u8 data[BSIZE]; // 1B*512
 
     /* TODO: Your code here. */
-    // struct buf* qnext;
-    ListNode *node;
+    struct buf* qnext;
 };
 
 static inline void
@@ -25,40 +23,35 @@ init_buflist(struct buf* head)
     head->blockno = 0;
     head->flags = 0;
     memset(head->data, 0, sizeof(head->data));
-    // head->qnext = NULL;
-    init_list_node(head->node);
+    head->qnext = NULL;
 }
 
 static inline void
 buflist_push(struct buf* n,
     struct buf* head)
 {
-    /* struct buf* tmp = head;
+    struct buf* tmp = head;
     while (tmp->qnext != NULL)
         tmp = tmp->qnext;
 
     tmp->qnext = n;
-    n->qnext = NULL; */
-    merge_list(head->node, n->node);
+    n->qnext = NULL;
 }
 
 static inline struct buf*
 buflist_front(struct buf* head)//head != NULL
 {
-    // return head->qnext;
-	return container_of(head->node->next, struct buf, node);
+    return head->qnext;
 }
 
 static inline void
 buflist_pop(struct buf* head)//head != NULL
 {
-    // head->qnext = (head->qnext)->qnext;
-    detach_from_list(head->node);
+    head->qnext = (head->qnext)->qnext;
 }
 
 static inline int
 buflist_empty(struct buf* head)
 {
-    // return (head->qnext == NULL);
-    return head->node->next == head->node;
+    return (head->qnext == NULL);
 }
