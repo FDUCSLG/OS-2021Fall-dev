@@ -508,8 +508,8 @@ void sd_init() {
      */
     /* TODO: Your code here. */
     static struct buf mbr;
-    u32 *LBA;
-    u32 *NUM;
+    u32 LBA;
+    u32 NUM;
     u8 *end;
 
     init_spinlock(&sdlock, "sdlock");
@@ -618,7 +618,7 @@ void sd_intr() {
 
         struct buf *b = buflist_front(&sdque);
         int write = b->flags & B_DIRTY;
-        if (!((write && i == INT_DATA_DONE) || (!write && INT_READ_RDY))) {
+        if (!((write && i == INT_DATA_DONE) || (!write && i == INT_READ_RDY))) {
             sd_start(b);
             // FIXME: don't PANIC
             printf("sd intr unexpected: 0x%x, restarted.\n", i);
