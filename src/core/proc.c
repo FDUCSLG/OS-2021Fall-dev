@@ -74,7 +74,7 @@ void spawn_init_process() {
     }
     memset(r, 0, PAGE_SIZE);
     uvm_map(p->pgdir, (void *)0, PAGE_SIZE, K2P(r));
-    memmove(r, (void *)icode, eicode - icode);
+    memmove(r, (void *)icode, (usize)(eicode - icode));
 
     memset(p->tf, 0, sizeof(*(p->tf)));
     p->tf->spsr = 0;
@@ -109,27 +109,73 @@ NO_RETURN void exit() {
     PANIC("exit should not return\n");
 }
 
-void
-sleep(void* chan, struct SpinLock* lk)
-{
-    /* TODO: Your code here. */
-    sched_sleep(chan,lk);
-}
-
-void
-wakeup(void* chan)
-{
-    /* TODO: Your code here. */
-    sched_wakeup(chan);
-}
-
-void
-yield()
-{
+/*
+ * Give up CPU.
+ * Switch to the scheduler of this proc.
+ */
+void yield() {
     acquire_sched_lock();
-    struct proc* p = thiscpu()->proc;
-    p->state = RUNNABLE;
+    thiscpu()->proc->state = RUNNABLE;
     sched();
     release_sched_lock();
 }
 
+void sleep(void *chan, SpinLock *lock) {
+    if (!holding_spinlock(lock)) {
+        PANIC("sleep: lock not held");
+    }
+
+    // change the state of ptable, add lock
+    if (lock != &thiscpu()->scheduler->ptable.lock) {
+        acquire_sched_lock();
+        release_spinlock(lock);
+    }
+
+    thiscpu()->proc->chan = chan;
+    thiscpu()->proc->state = SLEEPING;
+    sched();
+
+    // sched returns
+    thiscpu()->proc->chan = 0;
+
+    if (lock != &thiscpu()->scheduler->ptable.lock) {
+        release_sched_lock();
+        acquire_spinlock(lock);
+    }
+}
+
+void wakeup(void *chan) {
+    acquire_sched_lock();
+    for (struct proc *p = thiscpu()->scheduler->ptable.proc;
+         p < thiscpu()->scheduler->ptable.proc + NPROC;
+         p++) {
+        if (p->state == SLEEPING && p->chan == chan) {
+            p->state = RUNNABLE;
+        }
+    }
+    release_sched_lock();
+}
+
+void add_loop_test(int times) {
+    for (int i = 0; i < times; i++) {
+        struct proc *p;
+        extern char loop_start[], loop_end[];
+        p = alloc_proc();
+
+        char *r = kalloc();
+        if (r == NULL) {
+            PANIC("uvm_init: cannot alloc a page");
+        }
+        memset(r, 0, PAGE_SIZE);
+        uvm_map(p->pgdir, (void *)0, PAGE_SIZE, K2P(r));
+        memmove(r, (void *)loop_start, (usize)(loop_end - loop_start));
+
+        memset(p->tf, 0, sizeof(*(p->tf)));
+        p->tf->spsr = 0;
+        p->tf->sp = PAGE_SIZE;
+        p->tf->x[30] = 0;
+        p->tf->elr = 0;
+
+        p->state = RUNNABLE;
+    }
+}

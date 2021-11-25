@@ -30,9 +30,9 @@ void init_uart() {
 }
 
 char uart_get_char() {
-    int state = device_get_u32(AUX_MU_IIR_REG);
+    u32 state = device_get_u32(AUX_MU_IIR_REG);
     if ((state & 1) || (state & 6) != 4)
-        return -1;
+        return (char)-1;
 
     return device_get_u32(AUX_MU_IO_REG) & 0xff;
 }

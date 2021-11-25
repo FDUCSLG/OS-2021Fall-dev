@@ -2,6 +2,7 @@
 #include <common/string.h>
 #include <core/arena.h>
 #include <core/console.h>
+#include <core/container.h>
 #include <core/physical_memory.h>
 #include <core/proc.h>
 #include <core/sched.h>
@@ -19,7 +20,7 @@ void init_system_once() {
 
     // clear BSS section.
     extern char edata[], end[];
-    memset(edata, 0, end - edata);
+    memset(edata, 0, (usize)(end - edata));
 
     init_interrupt();
     init_char_device();
@@ -31,6 +32,7 @@ void init_system_once() {
 
     vm_test();
     arena_test();
+    init_container();
 
     release_spinlock(&init_lock);
 }
@@ -47,7 +49,7 @@ void init_system_per_cpu() {
     init_trap();
 
     // arch_enable_trap();
-    init_cpu(&simple_scheduler);
+    init_cpu(&root_container->scheduler);
 }
 
 NO_RETURN void main() {
@@ -80,17 +82,11 @@ NO_RETURN void main() {
     if (cpuid() == 0) {
         sd_init();
         spawn_init_process();
-        spawn_init_process();
-        spawn_init_process();
-        spawn_init_process();
-		spawn_init_process();
-		spawn_init_process();
-        enter_scheduler();        
+        container_test_init();
+        enter_scheduler();
     } else {
         enter_scheduler();
     }
 
-    while (true) {
-        arch_wfi();
-    }
+    no_return();
 }
