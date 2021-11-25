@@ -695,7 +695,7 @@ void sd_test() {
         b[i].flags = B_DIRTY;
         b[i].blockno = (u32)i;
         for (int j = 0; j < BSIZE; j++)
-            b[i].data[j] = i * j & 0xFF;
+            b[i].data[j] = (u8)((i * j) & 0xFF);
         sdrw(&b[i]);
 
         memset(b[i].data, 0, sizeof(b[i].data));
@@ -1493,11 +1493,11 @@ static void sdParseCID() {
     appId[1] = (sdCard.cid[0] & 0x000000ff);
     appId[2] = 0;
     char name[6];
-    name[0] = (sdCard.cid[1] & 0xff000000) >> 24;
-    name[1] = (sdCard.cid[1] & 0x00ff0000) >> 16;
-    name[2] = (sdCard.cid[1] & 0x0000ff00) >> 8;
-    name[3] = (sdCard.cid[1] & 0x000000ff);
-    name[4] = (sdCard.cid[2] & 0xff000000) >> 24;
+    name[0] = (char)((sdCard.cid[1] & 0xff000000) >> 24);
+    name[1] = (char)((sdCard.cid[1] & 0x00ff0000) >> 16);
+    name[2] = (char)((sdCard.cid[1] & 0x0000ff00) >> 8);
+    name[3] = (char)((sdCard.cid[1] & 0x000000ff));
+    name[4] = (char)((sdCard.cid[2] & 0xff000000) >> 24);
     name[5] = 0;
     int revH = (sdCard.cid[2] & 0x00f00000) >> 20;
     int revL = (sdCard.cid[2] & 0x000f0000) >> 16;

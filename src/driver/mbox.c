@@ -33,7 +33,7 @@ int mbox_read(u8 chan) {
         u32 r = *MBOX_READ;
         if ((r & 0xF) == chan) {
             printf("- mbox_read: 0x%x\n", r);
-            return r >> 4;
+            return (i32)(r >> 4);
         }
     }
     disb();
