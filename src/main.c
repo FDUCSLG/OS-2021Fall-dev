@@ -6,11 +6,11 @@
 #include <core/physical_memory.h>
 #include <core/proc.h>
 #include <core/sched.h>
-#include <core/sd.h>
 #include <core/trap.h>
 #include <core/virtual_memory.h>
 #include <driver/clock.h>
 #include <driver/interrupt.h>
+#include <driver/sd.h>
 
 static SpinLock init_lock = {.locked = 0};
 

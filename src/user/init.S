@@ -12,8 +12,8 @@ icode:
     svc     #0
 
 ispin:
-	mov		x8, #SYS_myyield
-	svc		#0
+    mov		x8, #SYS_myyield
+    svc		#0
     b       ispin
 
 exit:

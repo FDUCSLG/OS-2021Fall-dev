@@ -1196,7 +1196,7 @@ static int sdResetCard(int resetType) {
     // *EMMC_IRPT_EN   = INT_ALL_MASK;
     // *EMMC_IRPT_MASK = INT_ALL_MASK;
     // Ignore INT_CMD_DONE and INT_WRITE_RDY.
-    *EMMC_IRPT_EN = 0xffffffff & (u32)(~INT_CMD_DONE) & (~INT_WRITE_RDY);
+    *EMMC_IRPT_EN = 0xffffffff & (u32)(~INT_CMD_DONE) & (~(u32)INT_WRITE_RDY);
     *EMMC_IRPT_MASK = 0xffffffff;
     // printf("EMMC: Interrupt enable/mask registers: %08x %08x\n",*EMMC_IRPT_EN,*EMMC_IRPT_MASK);
     // printf("EMMC: Status: %08x, control: %08x %08x %08x\n",*EMMC_STATUS,*EMMC_CONTROL0,*EMMC_CONTROL1,*EMMC_CONTROL2);
@@ -1264,7 +1264,7 @@ static void sdInitGPIO() {
     u32 r;
     // GPIO_CD
     r = get32(GPFSEL4);
-    r &= ~(7 << (7 * 3));
+    r &= (u32)(~(7 << (7 * 3)));
     put32(GPFSEL4, r);
     put32(GPPUD, 2);
     delay(150);
@@ -1459,7 +1459,7 @@ int sdInit() {
     // Send APP_SET_BUS_WIDTH (ACMD6)
     // If supported, set 4 bit bus width and update the CONTROL0 register.
     if (sdCard.support & SD_SUPP_BUS_WIDTH_4) {
-        if ((resp = sdSendCommandA(IX_SET_BUS_WIDTH, sdCard.rca | 2)))
+        if ((resp = sdSendCommandA(IX_SET_BUS_WIDTH, (int)sdCard.rca | 2)))
             return sdDebugResponse(resp);
         *EMMC_CONTROL0 |= C0_HCTL_DWITDH;
     }
@@ -1501,7 +1501,7 @@ static void sdParseCID() {
     name[5] = 0;
     int revH = (sdCard.cid[2] & 0x00f00000) >> 20;
     int revL = (sdCard.cid[2] & 0x000f0000) >> 16;
-    int serial = ((sdCard.cid[2] & 0x0000ffff) << 16) + ((sdCard.cid[3] & 0xffff0000) >> 16);
+    int serial = (int)(((sdCard.cid[2] & 0x0000ffff) << 16) + ((sdCard.cid[3] & 0xffff0000) >> 16));
 
     // For some reason cards I have looked at seem to have the Y/M in
     // bits 11:0 whereas the spec says they should be in bits 19:8
@@ -1529,18 +1529,18 @@ static void sdParseCSD() {
 
     // For now just work out the size.
     if (csdVersion == CSD0_V1) {
-        int csize = ((sdCard.csd[1] & CSD1V1_C_SIZEH) << CSD1V1_C_SIZEH_SHIFT) +
-                    ((sdCard.csd[2] & CSD2V1_C_SIZEL) >> CSD2V1_C_SIZEL_SHIFT);
+        int csize = (int)(((sdCard.csd[1] & CSD1V1_C_SIZEH) << CSD1V1_C_SIZEH_SHIFT) +
+                          ((sdCard.csd[2] & CSD2V1_C_SIZEL) >> CSD2V1_C_SIZEL_SHIFT));
         int mult = 1 << (((sdCard.csd[2] & CSD2V1_C_SIZE_MULT) >> CSD2V1_C_SIZE_MULT_SHIFT) + 2);
         long long blockSize =
             1 << ((sdCard.csd[1] & CSD1VN_READ_BL_LEN) >> CSD1VN_READ_BL_LEN_SHIFT);
         long long numBlocks = (csize + 1LL) * mult;
 
-        sdCard.capacity = numBlocks * blockSize;
+        sdCard.capacity = (u64)(numBlocks * blockSize);
     } else {
         // if (csdVersion == CSD0_V2)
         long long csize = (sdCard.csd[2] & CSD2V2_C_SIZE) >> CSD2V2_C_SIZE_SHIFT;
-        sdCard.capacity = (csize + 1LL) * 512LL * 1024LL;
+        sdCard.capacity = (u64)((csize + 1LL) * 512LL * 1024LL);
     }
 
     // Get other attributes of the card.

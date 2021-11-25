@@ -1,5 +1,6 @@
 #include <aarch64/arm.h>
 #include <aarch64/intrinsic.h>
+#include <core/console.h>
 #include <driver/aux.h>
 #include <driver/gpio.h>
 #include <driver/interrupt.h>
@@ -51,7 +52,7 @@ void uart_put_char(char c) {
 }
 
 void uart_intr() {
-    for (int stat; !((stat = get32(AUX_MU_IIR_REG)) & 1);)
+    for (int stat; !((stat = (int)get32(AUX_MU_IIR_REG)) & 1);)
         if ((stat & 6) == 4)
             printf("%c", get32(AUX_MU_IO_REG) & 0xFF);
 }

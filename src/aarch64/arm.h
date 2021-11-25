@@ -39,12 +39,12 @@ static INLINE u32 get32(u64 p) {
 
 /* Unmask DAIF to start interrupt. */
 static INLINE void sti() {
-    asm volatile("msr daif, %[x]" : : [x] "r"(0));
+    asm volatile("msr daif, %[x]" : : [x] "r"(0llu));
 }
 
 /* Mask DAIF to close interrupt. */
 static INLINE void cli() {
-    asm volatile("msr daif, %[x]" : : [x] "r"(0xF << 6));
+    asm volatile("msr daif, %[x]" : : [x] "r"(0xFllu << 6));
 }
 
 /* Brute-force data and instruction synchronization barrier. */
