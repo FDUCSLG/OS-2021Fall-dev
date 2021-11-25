@@ -6,11 +6,11 @@
 #include <core/physical_memory.h>
 #include <core/proc.h>
 #include <core/sched.h>
+#include <core/sd.h>
 #include <core/trap.h>
 #include <core/virtual_memory.h>
 #include <driver/clock.h>
 #include <driver/interrupt.h>
-#include <core/sd.h>
 
 static SpinLock init_lock = {.locked = 0};
 
@@ -78,11 +78,14 @@ NO_RETURN void main() {
     //     delay_us(10000);
 
     // PANIC("TODO: add %s. CPUID = %zu", "scheduler", cpuid());
-    
+
     if (cpuid() == 0) {
         sd_init();
         spawn_init_process();
-        container_test_init();
+        for (int i = 0; i < 5; i++) {
+            idle_init();
+        }
+        // container_test_init();
         enter_scheduler();
     } else {
         enter_scheduler();

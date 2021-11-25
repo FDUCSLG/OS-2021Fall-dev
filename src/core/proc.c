@@ -1,12 +1,12 @@
-#include <core/sd.h>
 #include <aarch64/mmu.h>
+#include <common/spinlock.h>
 #include <common/string.h>
 #include <core/console.h>
 #include <core/physical_memory.h>
 #include <core/proc.h>
 #include <core/sched.h>
+#include <core/sd.h>
 #include <core/virtual_memory.h>
-#include <common/spinlock.h>
 
 void forkret();
 extern void trap_return();
@@ -178,4 +178,26 @@ void add_loop_test(int times) {
 
         p->state = RUNNABLE;
     }
+}
+
+void idle_init() {
+    struct proc *p;
+    extern char ispin[], eicode[];
+    p = alloc_proc();
+
+    char *r = kalloc();
+    if (r == NULL) {
+        PANIC("uvm_init: cannot alloc a page");
+    }
+    memset(r, 0, PAGE_SIZE);
+    uvm_map(p->pgdir, (void *)0, PAGE_SIZE, K2P(r));
+    memmove(r, (void *)ispin, (usize)(eicode - ispin));
+
+    memset(p->tf, 0, sizeof(*(p->tf)));
+    p->tf->spsr = 0;
+    p->tf->sp = PAGE_SIZE;
+    p->tf->x[30] = 0;
+    p->tf->elr = 0;
+
+    p->state = RUNNABLE;
 }

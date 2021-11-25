@@ -11,8 +11,10 @@ icode:
     mov     x2, #0
     svc     #0
 
-/* ispin:
-    b       ispin */
+ispin:
+	mov		x8, #SYS_myyield
+	svc		#0
+    b       ispin
 
 exit:
     mov     x8, #SYS_myexit
