@@ -12,18 +12,18 @@
 // 0x80  Extension FIFO config - what's that?
 // This register allows fine tuning the dma_req generation for paced DMA transfers when reading from the card.
 
-#include <core/sd.h>
+#include <driver/sd.h>
 
-#include <common/arm.h>
-#include <common/peripherals/gpio.h>
-#include <common/peripherals/mbox.h>
+#include <aarch64/arm.h>
 #include <common/string.h>
 #include <core/console.h>
+#include <driver/gpio.h>
+#include <driver/mbox.h>
 
-#include <common/buf.h>
 #include <common/defines.h>
 #include <common/spinlock.h>
 #include <core/proc.h>
+#include <driver/buf.h>
 #include <driver/clock.h>
 #include <driver/interrupt.h>
 #include <driver/uart.h>
@@ -330,8 +330,8 @@ static EMMCCommand sdCommandTable[] = {
 #define IX_SET_CLR_DET      37
 #define IX_SEND_SCR         38
 
-static const char *STATUS_NAME[] = {
-    "idle", "ready", "identify", "standby", "transmit", "data", "receive", "prog", "dis"};
+// static const char *STATUS_NAME[] = {
+//     "idle", "ready", "identify", "standby", "transmit", "data", "receive", "prog", "dis"};
 
 // CSD flags
 // Note: all flags are shifted down by 8 bits as the CRC is not included.
@@ -510,7 +510,7 @@ void sd_init() {
     static struct buf mbr;
     u32 *LBA;
     u32 *NUM;
-    u8 *end;
+    // u8 *end;
 
     init_spinlock(&sdlock, "sdlock");
     init_buflist(&sdque);
@@ -564,7 +564,7 @@ static void sd_start(struct buf *b) {
     // Address is different depending on the card type.
     // HC pass address as block #.
     // SC pass address straight through.
-    int bno = sdCard.type == SD_TYPE_2_HC ? b->blockno : b->blockno << 9;
+    int bno = sdCard.type == SD_TYPE_2_HC ? (int)b->blockno : (int)b->blockno << 9;
     int write = b->flags & B_DIRTY;
 
     // printf("- sd start: cpu %d, flag 0x%x, bno %d, write=%d\n", cpuid(), b->flags, bno, write);
@@ -609,11 +609,11 @@ void sd_intr() {
     if (buflist_empty(&sdque)) {
         printf("sd receive redundent interrupt 0x%x, omitted.\n", *EMMC_INTERRUPT);
     } else {
-        int i = *EMMC_INTERRUPT;
+        int i = (int)(*EMMC_INTERRUPT);
         // FIXME: Restart when failed
         asserts((i & INT_DATA_DONE) || (i & INT_READ_RDY), "unexpected sd intr");
 
-        *EMMC_INTERRUPT = i;  // Clear interrupt.
+        *EMMC_INTERRUPT = (u32)i;  // Clear interrupt.
         disb();
 
         struct buf *b = buflist_front(&sdque);
@@ -688,12 +688,12 @@ void sd_test() {
     for (int i = 1; i < n; i++) {
         // Backup.
         b[0].flags = 0;
-        b[0].blockno = i;
+        b[0].blockno = (u32)i;
 
         sdrw(&b[0]);
         // Write some value.
         b[i].flags = B_DIRTY;
-        b[i].blockno = i;
+        b[i].blockno = (u32)i;
         for (int j = 0; j < BSIZE; j++)
             b[i].data[j] = i * j & 0xFF;
         sdrw(&b[i]);
@@ -712,15 +712,15 @@ void sd_test() {
 
     // Read benchmark
     disb();
-    t = timestamp();
+    t = (i64)timestamp();
     disb();
     for (int i = 0; i < n; i++) {
         b[i].flags = 0;
-        b[i].blockno = i;
+        b[i].blockno = (u32)i;
         sdrw(&b[i]);
     }
     disb();
-    t = timestamp() - t;
+    t = (i64)timestamp() - t;
     disb();
     printf("- read %lldB (%lldMB), t: %lld cycles, speed: %lld.%lld MB/s\n",
            n * BSIZE,
@@ -731,15 +731,15 @@ void sd_test() {
 
     // Write benchmark
     disb();
-    t = timestamp();
+    t = (i64)timestamp();
     disb();
     for (int i = 0; i < n; i++) {
         b[i].flags = B_DIRTY;
-        b[i].blockno = i;
+        b[i].blockno = (u32)i;
         sdrw(&b[i]);
     }
     disb();
-    t = timestamp() - t;
+    t = (i64)timestamp() - t;
     disb();
 
     printf("- write %lldB (%lldMB), t: %lld cycles, speed: %lld.%lld MB/s\n",
@@ -769,13 +769,13 @@ static int sdDebugResponse(int resp) {
 static int sdWaitForInterrupt(unsigned int mask) {
     // Wait up to 1 second for the interrupt.
     int count = 1000000;
-    int waitMask = mask | INT_ERROR_MASK;
+    int waitMask = (int)(mask | INT_ERROR_MASK);
     int ival;
 
     // Wait for the specified interrupt or any error.
-    while (!(*EMMC_INTERRUPT & waitMask) && count--)
+    while (!(*EMMC_INTERRUPT & (u32)waitMask) && count--)
         sd_delayus(1);
-    ival = *EMMC_INTERRUPT;
+    ival = (int)(*EMMC_INTERRUPT);
     // printf("- sd intr 0x%x cost %d loops\n", mask, 1000000 - count);
 
     // Check for success.
@@ -784,14 +784,14 @@ static int sdWaitForInterrupt(unsigned int mask) {
         // printf("EMMC_STATUS:%08x\nEMMC_INTERRUPT: %08x\nEMMC_RESP0 : %08x\nn", *EMMC_STATUS, *EMMC_INTERRUPT, *EMMC_RESP0);
 
         // Clear the interrupt register completely.
-        *EMMC_INTERRUPT = ival;
+        *EMMC_INTERRUPT = (u32)ival;
 
         return SD_TIMEOUT;
     } else if (ival & INT_ERROR_MASK) {
         printf("* EMMC: Error waiting for interrupt: %x %x %x\n", *EMMC_STATUS, ival, *EMMC_RESP0);
 
         // Clear the interrupt register completely.
-        *EMMC_INTERRUPT = ival;
+        *EMMC_INTERRUPT = (u32)ival;
 
         return SD_ERROR;
     }
@@ -852,7 +852,7 @@ static int sdSendCommandP(EMMCCommand *cmd, int arg) {
         printf("- EMMC: Sending command %s code %x arg %x\n", cmd->name, cmd->code, arg);
 
     sdCard.lastCmd = cmd;
-    sdCard.lastArg = arg;
+    sdCard.lastArg = (u32)arg;
 
     //  printf("EMMC: Sending command %08x:%s arg %d\n",cmd->code,cmd->name,arg);
 
@@ -866,18 +866,18 @@ static int sdSendCommandP(EMMCCommand *cmd, int arg) {
     // Some commands require a delay before reading the response.
     //  printf("EMMC_STATUS:%08x\nEMMC_INTERRUPT: %08x\nEMMC_RESP0 : %08x\n", *EMMC_STATUS, *EMMC_INTERRUPT, *EMMC_RESP0);
     // printf("- arg: 0x%x, code: 0x%x, delay: %d\n", arg, cmd->code, cmd->delay);
-    *EMMC_ARG1 = arg;
+    *EMMC_ARG1 = (u32)arg;
 
     *EMMC_CMDTM = cmd->code;
     if (cmd->delay)
-        sd_delayus(cmd->delay);
+        sd_delayus((u32)cmd->delay);
 
     // Wait until command complete interrupt.
     if ((result = sdWaitForInterrupt(INT_CMD_DONE)))
         return result;
 
     // Get response from RESP0.
-    int resp0 = *EMMC_RESP0;
+    int resp0 = (int)*EMMC_RESP0;
     // printf("EMMC: Sent command %08x:%s arg %d resp %08x\n",cmd->code,cmd->name,arg,resp0);
 
     // Handle response types.
@@ -890,11 +890,11 @@ static int sdSendCommandP(EMMCCommand *cmd, int arg) {
             // Return value non-zero if any error flag in the status value.
         case RESP_R1:
         case RESP_R1b:
-            sdCard.status = resp0;
+            sdCard.status = (u32)resp0;
             // Store the card state.  Note that this is the state the card was in before the
             // command was accepted, not the new state.
             sdCard.cardState = (resp0 & ST_CARD_STATE) >> R1_CARD_STATE_SHIFT;
-            return resp0 & R1_ERRORS_MASK;
+            return resp0 & (int)R1_ERRORS_MASK;
 
             // RESP0..3 contains 128 bit CID or CSD shifted down by 8 bits as no CRC
             // Note: highest bits are in RESP3.
@@ -905,27 +905,28 @@ static int sdSendCommandP(EMMCCommand *cmd, int arg) {
             data[0] = *EMMC_RESP3;
             data[1] = *EMMC_RESP2;
             data[2] = *EMMC_RESP1;
-            data[3] = resp0;
+            data[3] = (u32)resp0;
             return SD_OK;
 
             // RESP0 contains OCR register
             // TODO: What is the correct time to wait for this?
         case RESP_R3:
             sdCard.status = 0;
-            sdCard.ocr = resp0;
+            sdCard.ocr = (u32)resp0;
             return SD_OK;
 
             // RESP0 contains RCA and status bits 23,22,19,12:0
         case RESP_R6:
-            sdCard.rca = resp0 & R6_RCA_MASK;
-            sdCard.status = ((resp0 & 0x00001fff))          // 12:0 map directly to status 12:0
-                            | ((resp0 & 0x00002000) << 6)   // 13 maps to status 19 ERROR
-                            | ((resp0 & 0x00004000) << 8)   // 14 maps to status 22 ILLEGAL_COMMAND
-                            | ((resp0 & 0x00008000) << 8);  // 15 maps to status 23 COM_CRC_ERROR
+            sdCard.rca = (u32)resp0 & R6_RCA_MASK;
+            sdCard.status =
+                (u32)((resp0 & 0x00001fff))          // 12:0 map directly to status 12:0
+                | (u32)((resp0 & 0x00002000) << 6)   // 13 maps to status 19 ERROR
+                | (u32)((resp0 & 0x00004000) << 8)   // 14 maps to status 22 ILLEGAL_COMMAND
+                | (u32)((resp0 & 0x00008000) << 8);  // 15 maps to status 23 COM_CRC_ERROR
             // Store the card state.  Note that this is the state the card was in before the
             // command was accepted, not the new state.
             sdCard.cardState = (resp0 & ST_CARD_STATE) >> R1_CARD_STATE_SHIFT;
-            return sdCard.status & R1_ERRORS_MASK;
+            return (int)(sdCard.status & R1_ERRORS_MASK);
 
             // RESP0 contains voltage acceptance and check pattern, which should match
             // the argument.
@@ -945,7 +946,7 @@ static int sdSendAppCommand() {
 
     // If there is an RCA, include that in APP_CMD and check card accepted it.
     else {
-        if ((resp = sdSendCommandP(&sdCommandTable[IX_APP_CMD_RCA], sdCard.rca)))
+        if ((resp = sdSendCommandP(&sdCommandTable[IX_APP_CMD_RCA], (int)sdCard.rca)))
             return sdDebugResponse(resp);
         // Debug - check that status indicates APP_CMD accepted.
         if (!(sdCard.status & ST_APP_CMD))
@@ -970,7 +971,7 @@ static int sdSendCommand(int index) {
     EMMCCommand *cmd = &sdCommandTable[index];
     int arg = 0;
     if (cmd->rca == RCA_YES)
-        arg = sdCard.rca;
+        arg = (int)sdCard.rca;
 
     if ((resp = sdSendCommandP(cmd, arg)))
         return resp;
@@ -1096,7 +1097,7 @@ static u32 sdGetClockDivider(u32 freq) {
     u32 closest = 41666666 / freq;
 
     // Get the raw shiftcount
-    u32 shiftcount = fls_long(closest - 1);
+    u32 shiftcount = (u32)fls_long(closest - 1);
 
     // Note the offset of shift by 1 (look at the spec)
     if (shiftcount > 0)
@@ -1139,12 +1140,12 @@ static int sdSetClock(int freq) {
     }
 
     // Switch clock off.
-    *EMMC_CONTROL1 &= ~C1_CLK_EN;
+    *EMMC_CONTROL1 &= (u32)(~C1_CLK_EN);
     sd_delayus(10);
 
     // Request the new clock setting and enable the clock
-    int cdiv = sdGetClockDivider(freq);
-    *EMMC_CONTROL1 = (*EMMC_CONTROL1 & 0xffff003f) | cdiv;
+    int cdiv = (int)sdGetClockDivider((u32)freq);
+    *EMMC_CONTROL1 = (*EMMC_CONTROL1 & 0xffff003f) | (u32)cdiv;
     sd_delayus(10);
 
     // Enable the clock.
@@ -1171,11 +1172,11 @@ static int sdResetCard(int resetType) {
     // Send reset host controller and wait for complete.
     *EMMC_CONTROL0 = 0;  // C0_SPI_MODE_EN;
     //  *EMMC_CONTROL2 = 0;
-    *EMMC_CONTROL1 |= resetType;
+    *EMMC_CONTROL1 |= (u32)resetType;
     //*EMMC_CONTROL1 &= ~(C1_CLK_EN|C1_CLK_INTLEN);
     sd_delayus(10);
     count = 10000;
-    while ((*EMMC_CONTROL1 & resetType) && count--)
+    while ((*EMMC_CONTROL1 & (u32)resetType) && count--)
         sd_delayus(10);
     if (count <= 0) {
         printf("* EMMC: ERROR: failed to reset.\n");
@@ -1195,7 +1196,7 @@ static int sdResetCard(int resetType) {
     // *EMMC_IRPT_EN   = INT_ALL_MASK;
     // *EMMC_IRPT_MASK = INT_ALL_MASK;
     // Ignore INT_CMD_DONE and INT_WRITE_RDY.
-    *EMMC_IRPT_EN = 0xffffffff & (~INT_CMD_DONE) & (~INT_WRITE_RDY);
+    *EMMC_IRPT_EN = 0xffffffff & (u32)(~INT_CMD_DONE) & (~INT_WRITE_RDY);
     *EMMC_IRPT_MASK = 0xffffffff;
     // printf("EMMC: Interrupt enable/mask registers: %08x %08x\n",*EMMC_IRPT_EN,*EMMC_IRPT_MASK);
     // printf("EMMC: Status: %08x, control: %08x %08x %08x\n",*EMMC_STATUS,*EMMC_CONTROL0,*EMMC_CONTROL1,*EMMC_CONTROL2);

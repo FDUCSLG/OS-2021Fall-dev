@@ -26,8 +26,8 @@ struct sched_op {
     void (*sched)();
     void (*acquire_lock)();
     void (*release_lock)();
-    void (*wakeup)(void* chan);
-    void (*sleep)(void* chan, struct SpinLock* lk)
+    void (*wakeup)(void *chan);
+    void (*sleep)(void *chan, struct SpinLock *lk)
 };
 
 struct scheduler {

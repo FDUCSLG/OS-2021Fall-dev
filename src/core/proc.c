@@ -5,8 +5,8 @@
 #include <core/physical_memory.h>
 #include <core/proc.h>
 #include <core/sched.h>
-#include <core/sd.h>
 #include <core/virtual_memory.h>
+#include <driver/sd.h>
 
 void forkret();
 extern void trap_return();

@@ -1,6 +1,6 @@
 #include <core/console.h>
-#include <core/syscall.h>
 #include <core/proc.h>
+#include <core/syscall.h>
 
 u64 syscall_dispatch(Trapframe *frame) {
     switch (frame->x[8]) {

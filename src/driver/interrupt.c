@@ -1,10 +1,10 @@
+#include <aarch64/arm.h>
 #include <aarch64/intrinsic.h>
 #include <core/console.h>
 #include <driver/base.h>
 #include <driver/clock.h>
 #include <driver/interrupt.h>
-#include <common/peripherals/irq.h>
-#include <common/arm.h>
+#include <driver/irq.h>
 
 #define IRQ_BASIC_PENDING  (MMIO_BASE + 0xB200)
 #define IRQ_PENDING_1      (MMIO_BASE + 0xB204)

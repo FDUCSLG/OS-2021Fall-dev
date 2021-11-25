@@ -1,5 +1,5 @@
+#include <aarch64/arm.h>
 #include <aarch64/intrinsic.h>
-#include <common/arm.h>
 #include <driver/aux.h>
 #include <driver/gpio.h>
 #include <driver/interrupt.h>
