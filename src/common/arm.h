@@ -1,5 +1,4 @@
-#ifndef INC_ARM_H
-#define INC_ARM_H
+#pragma once
 
 #include <common/defines.h>
 
@@ -136,5 +135,3 @@ lttbr1(u64 p)
 //     asm volatile("mrs %[x], mpidr_el1" : [x]"=r"(id));
 //     return id & 0xFF;
 // }
-
-#endif

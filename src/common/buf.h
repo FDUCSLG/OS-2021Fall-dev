@@ -1,5 +1,4 @@
-#ifndef INC_BUF_H
-#define INC_BUF_H
+#pragma once
 
 #include <common/defines.h>
 #include <common/string.h>
@@ -56,5 +55,3 @@ buflist_empty(struct buf* head)
 {
     return (head->qnext == NULL);
 }
-
-#endif

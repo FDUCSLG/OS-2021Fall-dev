@@ -1,5 +1,4 @@
-#ifndef INC_PERIPHERALS_MINI_UART_H
-#define INC_PERIPHERALS_MINI_UART_H
+#pragma once
 
 #include <common/peripherals/base.h>
 
@@ -15,5 +14,3 @@
 #define AUX_MU_CNTL_REG (MMIO_BASE + 0x00215060)
 #define AUX_MU_STAT_REG (MMIO_BASE + 0x00215064)
 #define AUX_MU_BAUD_REG (MMIO_BASE + 0x00215068)
-
-#endif

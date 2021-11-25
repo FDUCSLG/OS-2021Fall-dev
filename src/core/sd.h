@@ -1,5 +1,4 @@
-#ifndef INC_SD_H
-#define INC_SD_H
+#pragma once
 
 #include <common/buf.h>
 
@@ -23,5 +22,3 @@ void sd_init();
 void sd_intr();
 void sd_test();
 void sdrw(struct buf*);
-
-#endif
