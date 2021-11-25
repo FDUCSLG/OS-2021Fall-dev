@@ -15,12 +15,16 @@ static void sched_simple();
 static void init_sched_simple();
 static void acquire_ptable_lock();
 static void release_ptable_lock();
+static void proc_wakeup();
+static void proc_sleep();
 struct sched_op simple_op = {.scheduler = scheduler_simple,
                              .alloc_pcb = alloc_pcb_simple,
                              .sched = sched_simple,
                              .init = init_sched_simple,
                              .acquire_lock = acquire_ptable_lock,
-                             .release_lock = release_ptable_lock};
+                             .release_lock = release_ptable_lock,
+                             .wakeup = proc_wakeup,
+                             .sleep = proc_sleep};
 struct scheduler simple_scheduler = {.op = &simple_op};
 
 int nextpid = 1;
@@ -101,4 +105,44 @@ static struct proc *alloc_pcb_simple() {
     p->state = EMBRYO;
     release_ptable_lock();
     return p;
+}
+
+static void proc_wakeup(void* chan)
+{
+    acquire_spinlock(&ptable.lock);
+    for (struct proc* p = ptable.proc; p < ptable.proc + NPROC; p++) {
+        if (p->state == SLEEPING && p->chan == chan) {
+            // printf("erer\n");
+            p->state = RUNNABLE;
+        }
+    }
+    release_spinlock(&ptable.lock);
+}
+
+static void proc_sleep(void* chan, struct SpinLock* lk)
+{
+    struct proc* p = thiscpu()->proc;
+    if (p == 0) {
+        PANIC("sleep");
+    }
+    
+    // if (lk == 0) {
+    //     panic("sleep without lk");
+    // }
+
+    if (lk != &ptable.lock) {
+        acquire_spinlock(&ptable.lock);
+        release_spinlock(lk);
+    }
+
+    p->chan = chan;
+    p->state = SLEEPING;
+
+    sched();
+    p->chan = 0;
+
+    if (lk != &ptable.lock) {
+        release_spinlock(&ptable.lock);
+        acquire_spinlock(lk);
+    }
 }

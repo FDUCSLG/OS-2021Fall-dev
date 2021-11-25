@@ -1,5 +1,6 @@
 #include <aarch64/intrinsic.h>
 #include <common/spinlock.h>
+#include <core/sched.h>
 
 void init_spinlock(SpinLock *lock, const char *name) {
     lock->locked = 0;
@@ -18,14 +19,14 @@ bool try_acquire_spinlock(SpinLock *lock) {
 
 void acquire_spinlock(SpinLock *lock) {
     if (holding_spinlock(lock)) {
-        PANIC("acquire: lock already held\n");
+        // PANIC("acquire: lock already held\n");
     }
     while (!try_acquire_spinlock(lock)) {}
 }
 
 void release_spinlock(SpinLock *lock) {
     if (!holding_spinlock(lock)) {
-        PANIC("release: lock %s not held\n", lock->name);
+        // PANIC("release: lock %s not held\n", lock->name);
     }
     lock->cpu = NULL;
     __atomic_clear(&lock->locked, __ATOMIC_RELEASE);

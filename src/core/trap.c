@@ -3,6 +3,10 @@
 #include <core/syscall.h>
 #include <core/trap.h>
 #include <driver/interrupt.h>
+#include <common/peripherals/irq.h>
+#include <common/arm.h>
+#include <driver/clock.h>
+#include <core/proc.h>
 
 void init_trap() {
     extern char exception_vector[];
@@ -16,7 +20,7 @@ void trap_global_handler(Trapframe *frame) {
     u64 iss = esr & ESR_ISS_MASK;
     u64 ir = esr & ESR_IR_MASK;
 
-    arch_reset_esr();
+    i32 src = get32(IRQ_SRC_CORE(cpuid()));
 
     switch (ec) {
         case ESR_EC_UNKNOWN: {
@@ -27,6 +31,7 @@ void trap_global_handler(Trapframe *frame) {
         } break;
 
         case ESR_EC_SVC64: {
+            arch_reset_esr();
             frame->x[0] = syscall_dispatch(frame);
 
             // TODO: warn if `iss` is not zero.
@@ -36,10 +41,14 @@ void trap_global_handler(Trapframe *frame) {
         default: {
             // TODO: should exit current process here.
             // exit(1);
+
         }
     }
+
+    
 }
 
 NO_RETURN void trap_error_handler(u64 type) {
     PANIC("unknown trap type: %d", type);
 }
+

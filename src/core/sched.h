@@ -22,6 +22,8 @@ struct sched_op {
     void (*sched)();
     void (*acquire_lock)();
     void (*release_lock)();
+    void (*wakeup)(void* chan);
+    void (*sleep)(void* chan, struct SpinLock* lk)
 };
 
 struct scheduler {
@@ -76,3 +78,12 @@ static inline void acquire_sched_lock() {
 static inline void release_sched_lock() {
     thiscpu()->scheduler->op->release_lock();
 }
+
+static inline void sched_sleep(void *chan, struct SpinLock* lk) {
+    thiscpu()->scheduler->op->sleep(chan,lk);
+}
+
+static inline void sched_wakeup(void *chan) {
+    thiscpu()->scheduler->op->wakeup(chan);
+}
+

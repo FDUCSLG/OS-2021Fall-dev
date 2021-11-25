@@ -40,3 +40,5 @@ void init_proc();
 void spawn_init_process();
 void yield();
 NO_RETURN void exit();
+void sleep(void* chan, struct SpinLock* lk);
+void wakeup(void *chan);

@@ -1,4 +1,4 @@
-
+#include <core/sd.h>
 #include <aarch64/mmu.h>
 #include <common/string.h>
 #include <core/console.h>
@@ -6,9 +6,12 @@
 #include <core/proc.h>
 #include <core/sched.h>
 #include <core/virtual_memory.h>
+#include <common/spinlock.h>
 
 void forkret();
 extern void trap_return();
+volatile int flag_atom = 0;
+
 /*
  * Look through the process table for an UNUSED proc.
  * If found, change state to EMBRYO and initialize
@@ -87,6 +90,9 @@ void spawn_init_process() {
  */
 void forkret() {
     release_sched_lock();
+    if (!__atomic_test_and_set(&flag_atom, 1)) {
+        sd_test();
+    }
 }
 
 /*
@@ -102,3 +108,28 @@ NO_RETURN void exit() {
 
     PANIC("exit should not return\n");
 }
+
+void
+sleep(void* chan, struct SpinLock* lk)
+{
+    /* TODO: Your code here. */
+    sched_sleep(chan,lk);
+}
+
+void
+wakeup(void* chan)
+{
+    /* TODO: Your code here. */
+    sched_wakeup(chan);
+}
+
+void
+yield()
+{
+    acquire_sched_lock();
+    struct proc* p = thiscpu()->proc;
+    p->state = RUNNABLE;
+    sched();
+    release_sched_lock();
+}
+
