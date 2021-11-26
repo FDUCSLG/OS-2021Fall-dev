@@ -69,7 +69,8 @@ struct MockBlockDevice {
         }
 
         usize num_preallocated = 1 + 1 + sblock->num_log_blocks +
-                                 (sblock->num_inodes / INODE_PER_BLOCK) + num_bitmap_blocks;
+                                 ((sblock->num_inodes + INODE_PER_BLOCK - 1) / INODE_PER_BLOCK) +
+                                 num_bitmap_blocks;
         if (num_preallocated + sblock->num_data_blocks > sblock->num_blocks)
             throw Internal("invalid super block");
         for (usize i = 0; i < num_preallocated; i++) {
@@ -94,6 +95,7 @@ struct MockBlockDevice {
 
     void dump(std::ostream &stream) {
         for (auto &block : disk) {
+            std::scoped_lock lock(block.mutex);
             for (usize i = 0; i < BLOCK_SIZE; i++) {
                 stream << std::setfill('0') << std::setw(2) << std::hex
                        << static_cast<u64>(block.data[i]) << " ";
@@ -122,11 +124,16 @@ struct MockBlockDevice {
         load(file);
     }
 
-    void read(usize block_no, u8 *buffer) {
-        if (block_no >= disk.size())
-            throw Panic("block number is out of range");
+    void check_offline() {
         if (offline)
             throw Offline("disk power failure");
+    }
+
+    void read(usize block_no, u8 *buffer) {
+        if (block_no >= disk.size())
+            throw AssertionFailure("block number is out of range");
+
+        check_offline();
 
         auto &block = disk[block_no];
         std::scoped_lock lock(block.mutex);
@@ -134,18 +141,22 @@ struct MockBlockDevice {
         if (on_read)
             on_read(block_no, buffer);
 
+        check_offline();
+
         for (usize i = 0; i < BLOCK_SIZE; i++) {
             buffer[i] = block.data[i];
         }
 
         read_count++;
+
+        check_offline();
     }
 
     void write(usize block_no, u8 *buffer) {
         if (block_no >= disk.size())
-            throw Panic("block number is out of range");
-        if (offline)
-            throw Offline("disk power failure");
+            throw AssertionFailure("block number is out of range");
+
+        check_offline();
 
         auto &block = disk[block_no];
         std::scoped_lock lock(block.mutex);
@@ -153,11 +164,15 @@ struct MockBlockDevice {
         if (on_write)
             on_write(block_no, buffer);
 
+        check_offline();
+
         for (usize i = 0; i < BLOCK_SIZE; i++) {
             block.data[i] = buffer[i];
         }
 
         write_count++;
+
+        check_offline();
     }
 };
 

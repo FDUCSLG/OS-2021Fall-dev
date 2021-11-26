@@ -21,7 +21,7 @@ static void initialize_mock(  //
     sblock.log_start = 2;
     sblock.inode_start = sblock.log_start + 1 + log_size;
     sblock.bitmap_start = sblock.inode_start + 1;
-    sblock.num_inodes = 0;
+    sblock.num_inodes = 1;
     sblock.num_log_blocks = 1 + log_size;
     sblock.num_data_blocks = num_data_blocks;
     sblock.num_blocks = 1 + 1 + 1 + log_size + 1 +

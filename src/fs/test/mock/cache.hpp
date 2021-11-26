@@ -199,18 +199,18 @@ struct MockBlockCache {
 
     void check_block_no(usize i) {
         if (i >= num_blocks)
-            throw Panic("block number out of range");
+            throw AssertionFailure("block number out of range");
     }
 
     auto check_and_get_cell(Block *b) -> Cell * {
         Cell *p = container_of(b, Cell, block);
         isize offset = reinterpret_cast<u8 *>(p) - reinterpret_cast<u8 *>(mblk);
         if (offset % sizeof(Cell) != 0)
-            throw Panic("pointer not aligned");
+            throw AssertionFailure("pointer not aligned");
 
         isize i = p - mblk;
         if (i < 0 || static_cast<usize>(i) >= num_blocks)
-            throw Panic("block is not managed by cache");
+            throw AssertionFailure("block is not managed by cache");
 
         return p;
     }
@@ -292,7 +292,7 @@ struct MockBlockCache {
             }
         }
 
-        throw Panic("no free block");
+        throw AssertionFailure("no free block");
     }
 
     void free(OpContext *ctx, usize i) {
@@ -301,7 +301,7 @@ struct MockBlockCache {
         std::scoped_lock guard(mbit[i].mutex, sbit[i].mutex);
         load(mbit[i], sbit[i]);
         if (!mbit[i].used)
-            throw Panic("free unused block");
+            throw AssertionFailure("free unused block");
 
         mbit[i].used = false;
         if (!ctx)
