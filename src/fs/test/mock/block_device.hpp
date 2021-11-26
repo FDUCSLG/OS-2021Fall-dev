@@ -5,6 +5,7 @@ extern "C" {
 }
 
 #include <atomic>
+#include <fstream>
 #include <functional>
 #include <iomanip>
 #include <mutex>
@@ -94,7 +95,8 @@ struct MockBlockDevice {
     void dump(std::ostream &stream) {
         for (auto &block : disk) {
             for (usize i = 0; i < BLOCK_SIZE; i++) {
-                stream << std::hex << static_cast<u64>(block.data[i]) << " ";
+                stream << std::setfill('0') << std::setw(2) << std::hex
+                       << static_cast<u64>(block.data[i]) << " ";
             }
             stream << "\n";
         }
@@ -108,6 +110,16 @@ struct MockBlockDevice {
                 block.data[i] = value & 0xff;
             }
         }
+    }
+
+    void dump(const std::string &path) {
+        std::ofstream file(path);
+        dump(file);
+    }
+
+    void load(const std::string &path) {
+        std::ifstream file(path);
+        load(file);
     }
 
     void read(usize block_no, u8 *buffer) {

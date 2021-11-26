@@ -8,6 +8,7 @@ extern "C" {
 
 #include "mock/block_device.hpp"
 
+#include <chrono>
 #include <thread>
 
 namespace basic {
@@ -377,7 +378,156 @@ void test_alloc_free() {
 
 namespace crash {
 
-void test_simple_crash() {}
+constexpr int IN_CHILD = 0;
+
+static void wait_process(int pid) {
+    int wstatus;
+    waitpid(pid, &wstatus, 0);
+    if (!WIFEXITED(wstatus)) {
+        std::stringstream buf;
+        buf << "process [" << pid << "] exited abnormally";
+        throw Panic(buf.str());
+    }
+}
+
+void test_simple_crash() {
+    int child;
+    if ((child = fork()) == IN_CHILD) {
+        initialize(100, 100);
+
+        OpContext ctx;
+        bcache.begin_op(&ctx);
+        auto *b = bcache.acquire(150);
+        b->data[200] = 0x19;
+        b->data[201] = 0x26;
+        b->data[202] = 0x08;
+        b->data[203] = 0x17;
+        bcache.sync(&ctx, b);
+        bcache.release(b);
+        bcache.end_op(&ctx);
+
+        bcache.begin_op(&ctx);
+        b = bcache.acquire(150);
+        b->data[200] = 0xcc;
+        b->data[201] = 0xcc;
+        b->data[202] = 0xcc;
+        b->data[203] = 0xcc;
+        bcache.sync(&ctx, b);
+        bcache.release(b);
+
+        mock.offline = true;
+
+        try {
+            bcache.end_op(&ctx);
+        } catch (const Offline &) {}
+
+        mock.dump("sd.img");
+
+        exit(0);
+    } else {
+        wait_process(child);
+        initialize_mock(100, 100, "sd.img");
+
+        auto *b = mock.inspect(150);
+        assert_eq(b[200], 0x19);
+        assert_eq(b[201], 0x26);
+        assert_eq(b[202], 0x08);
+        assert_eq(b[203], 0x17);
+
+        init_bcache(&sblock, &device);
+        assert_eq(b[200], 0x19);
+        assert_eq(b[201], 0x26);
+        assert_eq(b[202], 0x08);
+        assert_eq(b[203], 0x17);
+    }
+}
+
+void test_parallel_paint(usize num_rounds, usize num_workers, usize delay_ms, usize log_cut) {
+    usize log_size = num_workers * OP_MAX_NUM_BLOCKS - log_cut;
+    usize num_data_blocks = 200 + num_workers * OP_MAX_NUM_BLOCKS;
+
+    printf("(trace) running: 0/%zu", num_rounds);
+    fflush(stdout);
+
+    usize replay_count = 0;
+    for (usize round = 0; round < num_rounds; round++) {
+        int child;
+        if ((child = fork()) == IN_CHILD) {
+            initialize_mock(log_size, num_data_blocks);
+            for (usize i = 0; i < num_workers * OP_MAX_NUM_BLOCKS; i++) {
+                auto *b = mock.inspect(200 + i);
+                std::fill(b, b + BLOCK_SIZE, 0);
+            }
+
+            init_bcache(&sblock, &device);
+
+            for (usize i = 0; i < num_workers; i++) {
+                std::thread([&, i] {
+                    usize t = 200 + i * OP_MAX_NUM_BLOCKS;
+                    try {
+                        usize v = 0;
+                        while (true) {
+                            OpContext ctx;
+                            bcache.begin_op(&ctx);
+                            for (usize j = 0; j < OP_MAX_NUM_BLOCKS; j++) {
+                                auto *b = bcache.acquire(t + j);
+                                for (usize k = 0; k < BLOCK_SIZE; k++) {
+                                    b->data[k] = v & 0xff;
+                                }
+                                bcache.sync(&ctx, b);
+                                bcache.release(b);
+                            }
+                            bcache.end_op(&ctx);
+
+                            v++;
+                        }
+                    } catch (const Offline &) {}
+                }).detach();
+            }
+
+            // disk will power off after `delay_ms` ms.
+            std::thread aha([&] {
+                std::this_thread::sleep_for(std::chrono::milliseconds(delay_ms));
+                mock.offline = true;
+            });
+
+            aha.join();
+            mock.dump("sd.img");
+            exit(0);
+        } else {
+            wait_process(child);
+            initialize_mock(log_size, num_data_blocks, "sd.img");
+            auto *header = mock.inspect_log_header();
+            if (header->num_blocks > 0)
+                replay_count++;
+
+            if ((child = fork()) == IN_CHILD) {
+                init_bcache(&sblock, &device);
+                assert_eq(header->num_blocks, 0);
+
+                for (usize i = 0; i < num_workers; i++) {
+                    usize t = 200 + i * OP_MAX_NUM_BLOCKS;
+                    u8 v = mock.inspect(t)[0];
+
+                    for (usize j = 0; j < OP_MAX_NUM_BLOCKS; j++) {
+                        auto *b = mock.inspect(t + j);
+                        for (usize k = 0; k < BLOCK_SIZE; k++) {
+                            assert_eq(b[k], v);
+                        }
+                    }
+                }
+
+                exit(0);
+            } else
+                wait_process(child);
+        }
+
+        printf("\r(trace) running: %zu/%zu (%zu replayed)", round + 1, num_rounds, replay_count);
+        fflush(stdout);
+    }
+
+    puts("");
+}
 
 }  // namespace crash
 
@@ -396,6 +546,11 @@ int main() {
         {"alloc_free", basic::test_alloc_free},
 
         {"simple_crash", crash::test_simple_crash},
+        {"parallel_paint_1", [] { crash::test_parallel_paint(1000, 1, 5, 0); }},
+        {"parallel_paint_2", [] { crash::test_parallel_paint(1000, 2, 5, 0); }},
+        {"parallel_paint_3", [] { crash::test_parallel_paint(1000, 4, 5, 0); }},
+        {"parallel_paint_4", [] { crash::test_parallel_paint(500, 4, 10, 1); }},
+        {"parallel_paint_5", [] { crash::test_parallel_paint(500, 4, 10, 2 * OP_MAX_NUM_BLOCKS); }},
     };
     Runner(tests).run();
 

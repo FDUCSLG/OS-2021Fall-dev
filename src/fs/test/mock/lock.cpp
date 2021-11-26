@@ -19,8 +19,17 @@ struct Mutex {
     }
 };
 
+struct Signal {
+    // use a pointer to avoid `pthread_cond_destroy` blocking process exit.
+    std::condition_variable_any *cv;
+
+    Signal() {
+        cv = new std::condition_variable_any;
+    }
+};
+
 Map<void *, Mutex> mtx_map;
-Map<void *, std::condition_variable_any> cv_map;
+Map<void *, Signal> sig_map;
 
 }  // namespace
 
@@ -54,10 +63,10 @@ void release_sleeplock(struct SleepLock *lock) {
 }
 
 void _fs_test_sleep(void *chan, struct SpinLock *lock) {
-    cv_map.safe_get(chan).wait(mtx_map[lock].mutex);
+    sig_map.safe_get(chan).cv->wait(mtx_map[lock].mutex);
 }
 
 void _fs_test_wakeup(void *chan) {
-    cv_map.safe_get(chan).notify_all();
+    sig_map.safe_get(chan).cv->notify_all();
 }
 }

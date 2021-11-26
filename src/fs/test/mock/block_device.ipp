@@ -14,7 +14,10 @@ static void stub_write(usize block_no, u8 *buffer) {
     mock.write(block_no, buffer);
 }
 
-static void initialize_mock(usize log_size, usize num_data_blocks) {
+static void initialize_mock(  //
+    usize log_size,
+    usize num_data_blocks,
+    const std::string &image_path = "") {
     sblock.log_start = 2;
     sblock.inode_start = sblock.log_start + 1 + log_size;
     sblock.bitmap_start = sblock.inode_start + 1;
@@ -28,9 +31,15 @@ static void initialize_mock(usize log_size, usize num_data_blocks) {
 
     device.read = stub_read;
     device.write = stub_write;
+
+    if (!image_path.empty())
+        mock.load(image_path);
 }
 
-[[maybe_unused]] static void initialize(usize log_size, usize num_data_blocks) {
-    initialize_mock(log_size, num_data_blocks);
+[[maybe_unused]] static void initialize(  //
+    usize log_size,
+    usize num_data_blocks,
+    const std::string &image_path = "") {
+    initialize_mock(log_size, num_data_blocks, image_path);
     init_bcache(&sblock, &device);
 }
