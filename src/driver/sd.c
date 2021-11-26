@@ -506,19 +506,9 @@ void sd_init() {
      * Initialize the lock and request queue if any.
      * Remember to call sd_init() at somewhere.
      */
-    /* TODO: Your code here. */
-    static struct buf mbr;
-    u32 LBA;
-    u32 NUM;
-    // u8 *end;
+    /* TODO: Lab7 driver. */
+    
 
-    init_spinlock(&sdlock, "sdlock");
-    init_buflist(&sdque);
-
-    sdInit();
-    assert(sdCard.init);
-
-    set_interrupt_handler(IRQ_ARASANSDIO, sd_intr);
 
     /*
      * Read and parse 1st block (MBR) and collect whatever
@@ -528,30 +518,8 @@ void sd_init() {
      * sdWaitForInterrupt for clearing certain interrupt.
      */
 
-    /* TODO: Your code here. */
+    /* TODO: Lab7 driver. */
 
-    mbr.blockno = 0;
-    mbr.flags = 0;
-    mbr.qnext = NULL;
-
-    sd_start(&mbr);
-
-    sdWaitForInterrupt(INT_READ_RDY);
-
-    u32 *intbuf = (u32 *)mbr.data;
-    for (int done = 0; done < 128;) {
-        intbuf[done++] = *EMMC_DATA;
-        // printf("%d %d\n", intbuf[done - 1], done - 1);
-    }
-    sdWaitForInterrupt(INT_DATA_DONE);
-
-    //no.471-474 475-478 bytes 4bytes
-    LBA = *(u32 *)(mbr.data + 0x1CE + 0x8);
-    NUM = *(u32 *)(mbr.data + 0x1CE + 0xC);
-    // end = mbr.data[511];
-    printf("0x%x\n", LBA);
-    printf("0x%x\n", NUM);
-    // printf("0x%x\n", end);
 }
 
 static void sd_delayus(u32 c) {
@@ -602,9 +570,6 @@ static void sd_start(struct buf *b) {
 
 /* The interrupt handler. */
 void sd_intr() {
-    /* TODO: Your code here. */
-
-    /* Hint: Example pseudocode is provided as below. */
     acquire_spinlock(&sdlock);
     if (buflist_empty(&sdque)) {
         printf("sd receive redundent interrupt 0x%x, omitted.\n", *EMMC_INTERRUPT);
@@ -648,29 +613,13 @@ void sd_intr() {
  * Else if B_VALID is not set, read buf from disk, set B_VALID.
  */
 void sdrw(struct buf *b) {
-    /* TODO: Your code here. */
-    // add to the list, if list is empty, then use sd_start
-    // then sleep, use loop to check whether buf flag is modified, if modified, then break
-    int flag;
-    // printf("sdrw called\n");
-    flag = buflist_empty(&sdque);
-    buflist_push(b, &sdque);
+    
+    /* 
+     * Add to the list, if list is empty, then use sd_start
+     * then sleep, use loop to check whether buf flag is modified, if modified, then break 
+     */
 
-    acquire_spinlock(&sdlock);
-
-    if (flag) {
-        sd_start(buflist_front(&sdque));
-    }
-
-    while (1) {
-        sleep((void *)b, &sdlock);
-        //flags = 100 -> 010
-        if ((b->flags & B_VALID) && (~b->flags & B_DIRTY)) {
-            break;
-        }
-    }
-    if (holding_spinlock(&sdlock))
-        release_spinlock(&sdlock);
+    /* TODO: Lab7 driver. */
 }
 
 /* SD card test and benchmark. */
