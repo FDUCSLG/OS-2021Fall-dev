@@ -570,41 +570,25 @@ static void sd_start(struct buf *b) {
 
 /* The interrupt handler. */
 void sd_intr() {
-    acquire_spinlock(&sdlock);
-    if (buflist_empty(&sdque)) {
-        printf("sd receive redundent interrupt 0x%x, omitted.\n", *EMMC_INTERRUPT);
-    } else {
-        int i = (int)(*EMMC_INTERRUPT);
-        // FIXME: Restart when failed
-        asserts((i & INT_DATA_DONE) || (i & INT_READ_RDY), "unexpected sd intr");
+    /*
+     * Pay attention to whether there is any element in the buflist.
 
-        *EMMC_INTERRUPT = (u32)i;  // Clear interrupt.
-        disb();
-
-        struct buf *b = buflist_front(&sdque);
-        int write = b->flags & B_DIRTY;
-        if (!((write && i == INT_DATA_DONE) || (!write && i == INT_READ_RDY))) {
-            sd_start(b);
-            // FIXME: don't PANIC
-            printf("sd intr unexpected: 0x%x, restarted.\n", i);
-        } else {
-            if (!write) {
-                u32 *intbuf = (u32 *)b->data;
-                for (int done = 0; done < 128;)
-                    intbuf[done++] = *EMMC_DATA;
-                sdWaitForInterrupt(INT_DATA_DONE);
-            }
-
-            b->flags |= B_VALID;
-            b->flags &= ~B_DIRTY;
-            wakeup(b);
-
-            buflist_pop(&sdque);
-            if (!buflist_empty(&sdque))
-                sd_start(buflist_front(&sdque));
-        }
-    }
-    release_spinlock(&sdlock);
+     * Understand the meanings of EMMC_INTERRUPT, EMMC_DATA, INT_DATA_DONE, 
+     * INT_READ_RDY, B_DIRTY, B_VALID and some other flags.
+     * 
+     * Notice that reading and writing are different, you can use flags 
+     * to identify.
+     * 
+     * Remember to clear the flags after reading/writing.
+     * 
+     * When finished, remember to use pop and check whether the list is
+     * empty, if not, continue to read/write.
+     * 
+     * You may use some buflist functions, disb(), sd_start(), wakeup() and
+     * sdWaitForInterrupt() to complete this function.
+     */
+    
+    /* TODO: Lab7 driver. */
 }
 
 /*
