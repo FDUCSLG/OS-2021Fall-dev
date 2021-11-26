@@ -35,10 +35,15 @@ public:
         return it->second;
     }
 
-    template <typename Fn>
-    void atomic_apply(const Key &key, const Fn &fn) {
-        std::unique_lock lock(mutex);
-        fn(map[key]);
+    auto safe_get(const Key &key) -> Value & {
+        std::shared_lock lock(mutex);
+        auto it = map.find(key);
+        if (it == map.end()) {
+            lock.unlock();
+            try_add(key);
+            lock.lock();
+        }
+        return map[key];
     }
 
 private:

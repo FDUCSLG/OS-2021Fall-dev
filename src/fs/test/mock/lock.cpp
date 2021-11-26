@@ -54,10 +54,10 @@ void release_sleeplock(struct SleepLock *lock) {
 }
 
 void _fs_test_sleep(void *chan, struct SpinLock *lock) {
-    cv_map.atomic_apply(chan, [lock](auto &cv) { cv.wait(mtx_map[lock].mutex); });
+    cv_map.safe_get(chan).wait(mtx_map[lock].mutex);
 }
 
 void _fs_test_wakeup(void *chan) {
-    cv_map.atomic_apply(chan, [](auto &cv) { cv.notify_all(); });
+    cv_map.safe_get(chan).notify_all();
 }
 }

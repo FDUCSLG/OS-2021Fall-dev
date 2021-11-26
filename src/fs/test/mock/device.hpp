@@ -31,21 +31,26 @@ struct MockBlockDevice {
         }
     };
 
+    const SuperBlock *sblock;
+
     std::atomic<bool> offline;
     std::atomic<usize> read_count;
     std::atomic<usize> write_count;
     std::vector<Block> disk;
 
     using Hook = std::function<void(usize block_no, u8 *buffer)>;
+
     Hook on_read;
     Hook on_write;
 
-    void initialize(const SuperBlock &sblock) {
+    void initialize(const SuperBlock &_sblock) {
+        sblock = &_sblock;
+
         offline = false;
         read_count = 0;
         write_count = 0;
         {
-            std::vector<Block> new_disk(sblock.num_blocks);
+            std::vector<Block> new_disk(sblock->num_blocks);
             std::swap(disk, new_disk);
         }
 
@@ -53,22 +58,22 @@ struct MockBlockDevice {
             block.fill_junk();
         }
 
-        if (sblock.num_log_blocks < 2)
+        if (sblock->num_log_blocks < 2)
             throw Internal("logging area is too small");
-        disk[sblock.log_start].fill_zero();
+        disk[sblock->log_start].fill_zero();
 
-        usize num_bitmap_blocks = (sblock.num_data_blocks + BIT_PER_BLOCK - 1) / BIT_PER_BLOCK;
+        usize num_bitmap_blocks = (sblock->num_data_blocks + BIT_PER_BLOCK - 1) / BIT_PER_BLOCK;
         for (usize i = 0; i < num_bitmap_blocks; i++) {
-            disk[sblock.bitmap_start + i].fill_zero();
+            disk[sblock->bitmap_start + i].fill_zero();
         }
 
-        usize num_preallocated = 1 + 1 + sblock.num_log_blocks +
-                                 (sblock.num_inodes / INODE_PER_BLOCK) + num_bitmap_blocks;
-        if (num_preallocated + sblock.num_data_blocks > sblock.num_blocks)
+        usize num_preallocated = 1 + 1 + sblock->num_log_blocks +
+                                 (sblock->num_inodes / INODE_PER_BLOCK) + num_bitmap_blocks;
+        if (num_preallocated + sblock->num_data_blocks > sblock->num_blocks)
             throw Internal("invalid super block");
         for (usize i = 0; i < num_preallocated; i++) {
             usize j = i / BIT_PER_BLOCK, k = i % BIT_PER_BLOCK;
-            disk[sblock.bitmap_start + j].data[k / 8] |= (1 << (k % 8));
+            disk[sblock->bitmap_start + j].data[k / 8] |= (1 << (k % 8));
         }
     }
 
@@ -76,6 +81,14 @@ struct MockBlockDevice {
         if (block_no >= disk.size())
             throw Internal("block number is out of range");
         return disk[block_no].data;
+    }
+
+    auto inspect_log(usize index) -> u8 * {
+        return inspect(sblock->log_start + 1 + index);
+    }
+
+    auto inspect_log_header() -> LogHeader * {
+        return reinterpret_cast<LogHeader *>(inspect(sblock->log_start));
     }
 
     void dump(std::ostream &stream) {

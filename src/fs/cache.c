@@ -204,6 +204,8 @@ static void commit(OpContext *ctx) {
 
     // blocks reserved but not used are now returned back.
     usize unused = OP_MAX_NUM_BLOCKS - ctx->num_blocks;
+
+    // the lock is holded by the caller.
     log_used -= unused + absorbed;
     wakeup(&log_used);
 }
@@ -331,7 +333,7 @@ void cache_free(OpContext *ctx, usize block_no) {
     Block *block = cache_acquire(sblock->bitmap_start + i);
 
     BitmapCell *bitmap = (BitmapCell *)block->data;
-    assert(!bitmap_get(bitmap, j));
+    assert(bitmap_get(bitmap, j));
     bitmap_clear(bitmap, j);
 
     cache_sync(ctx, block);
