@@ -10,6 +10,7 @@
 #include <core/virtual_memory.h>
 #include <driver/clock.h>
 #include <driver/interrupt.h>
+#include <driver/sd.h>
 
 static SpinLock init_lock = {.locked = 0};
 
@@ -37,7 +38,7 @@ void init_system_once() {
 }
 
 void hello() {
-    printf("CPU %d: HELLO!\n", cpuid());
+    // printf("CPU %d: HELLO!\n", cpuid());
     reset_clock(1000);
     yield();
 }
@@ -57,29 +58,34 @@ NO_RETURN void main() {
     wait_spinlock(&init_lock);
     init_system_per_cpu();
 
-    if (cpuid() == 0)
-        puts("Hello, world!");
-    else if (cpuid() == 1)
-        puts("Hello, rpi-os!");
-    else if (cpuid() == 2)
-        printf("Hello, printf: %? %% %s %s %u %llu %d %lld %x %llx %p %c\n",
-               NULL,
-               "(aha)",
-               0u,
-               1llu,
-               -2,
-               -3ll,
-               4u,
-               5llu,
-               printf,
-               '!');
-    else
-        delay_us(10000);
+    // if (cpuid() == 0)
+    //     puts("Hello, world!");
+    // else if (cpuid() == 1)
+    //     puts("Hello, rpi-os!");
+    // else if (cpuid() == 2)
+    //     printf("Hello, printf: %? %% %s %s %u %llu %d %lld %x %llx %p %c\n",
+    //            NULL,
+    //            "(aha)",
+    //            0u,
+    //            1llu,
+    //            -2,
+    //            -3ll,
+    //            4u,
+    //            5llu,
+    //            printf,
+    //            '!');
+    // else
+    //     delay_us(10000);
 
     // PANIC("TODO: add %s. CPUID = %zu", "scheduler", cpuid());
+
     if (cpuid() == 0) {
+        sd_init();
         spawn_init_process();
-        container_test_init();
+        for (int i = 0; i < 5; i++) {
+            idle_init();
+        }
+        // container_test_init();
         enter_scheduler();
     } else {
         enter_scheduler();

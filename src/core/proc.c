@@ -1,14 +1,17 @@
-
 #include <aarch64/mmu.h>
+#include <common/spinlock.h>
 #include <common/string.h>
 #include <core/console.h>
 #include <core/physical_memory.h>
 #include <core/proc.h>
 #include <core/sched.h>
 #include <core/virtual_memory.h>
+#include <driver/sd.h>
 
 void forkret();
 extern void trap_return();
+volatile int flag_atom = 0;
+
 /*
  * Look through the process table for an UNUSED proc.
  * If found, change state to EMBRYO and initialize
@@ -87,6 +90,9 @@ void spawn_init_process() {
  */
 void forkret() {
     release_sched_lock();
+    if (!__atomic_test_and_set(&flag_atom, 1)) {
+        sd_test();
+    }
 }
 
 /*
@@ -172,4 +178,26 @@ void add_loop_test(int times) {
 
         p->state = RUNNABLE;
     }
+}
+
+void idle_init() {
+    struct proc *p;
+    extern char ispin[], eicode[];
+    p = alloc_proc();
+
+    char *r = kalloc();
+    if (r == NULL) {
+        PANIC("uvm_init: cannot alloc a page");
+    }
+    memset(r, 0, PAGE_SIZE);
+    uvm_map(p->pgdir, (void *)0, PAGE_SIZE, K2P(r));
+    memmove(r, (void *)ispin, (usize)(eicode - ispin));
+
+    memset(p->tf, 0, sizeof(*(p->tf)));
+    p->tf->spsr = 0;
+    p->tf->sp = PAGE_SIZE;
+    p->tf->x[30] = 0;
+    p->tf->elr = 0;
+
+    p->state = RUNNABLE;
 }
