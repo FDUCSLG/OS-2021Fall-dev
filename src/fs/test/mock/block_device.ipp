@@ -1,6 +1,6 @@
 #pragma once
 
-#include "device.hpp"
+#include "block_device.hpp"
 
 static MockBlockDevice mock;
 static SuperBlock sblock;

@@ -150,5 +150,5 @@ struct MockBlockDevice {
 };
 
 namespace {
-#include "device.ipp"
+#include "block_device.ipp"
 }  // namespace

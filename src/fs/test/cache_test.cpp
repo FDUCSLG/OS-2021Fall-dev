@@ -6,7 +6,7 @@ extern "C" {
 #include "pause.hpp"
 #include "runner.hpp"
 
-#include "mock/device.hpp"
+#include "mock/block_device.hpp"
 
 #include <thread>
 
@@ -375,6 +375,12 @@ void test_alloc_free() {
 
 }  // namespace basic
 
+namespace crash {
+
+void test_simple_crash() {}
+
+}  // namespace crash
+
 int main() {
     std::vector<Testcase> tests = {
         {"init", basic::test_init},
@@ -388,6 +394,8 @@ int main() {
         {"global_absorption", basic::test_global_absorption},
         {"replay", basic::test_replay},
         {"alloc_free", basic::test_alloc_free},
+
+        {"simple_crash", crash::test_simple_crash},
     };
     Runner(tests).run();
 
