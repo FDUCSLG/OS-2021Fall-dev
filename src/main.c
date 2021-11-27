@@ -10,7 +10,6 @@
 #include <core/virtual_memory.h>
 #include <driver/clock.h>
 #include <driver/interrupt.h>
-#include <driver/sd.h>
 
 static SpinLock init_lock = {.locked = 0};
 
@@ -80,7 +79,6 @@ NO_RETURN void main() {
     // PANIC("TODO: add %s. CPUID = %zu", "scheduler", cpuid());
 
     if (cpuid() == 0) {
-        sd_init();
         spawn_init_process();
         for (int i = 0; i < 5; i++) {
             idle_init();
