@@ -1,11 +1,10 @@
 #pragma once
 
-#include <common/defines.h>
 #include <common/list.h>
 #include <common/rc.h>
 #include <common/spinlock.h>
 #include <fs/cache.h>
-#include <fs/fs.h>
+#include <fs/defines.h>
 
 #define ROOT_INODE_NO 1
 

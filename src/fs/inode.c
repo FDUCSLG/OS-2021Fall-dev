@@ -44,7 +44,10 @@ void init_inodes(const SuperBlock *_sblock, const BlockCache *_cache) {
     cache = _cache;
     init_arena(&arena, sizeof(Inode), allocator);
 
-    inodes.root = inodes.get(ROOT_INODE_NO);
+    if (ROOT_INODE_NO < sblock->num_inodes)
+        inodes.root = inodes.get(ROOT_INODE_NO);
+    else
+        printf("(warn) init_inodes: no root inode.\n");
 }
 
 // initialize in-memory inode.

@@ -36,7 +36,11 @@ add_subdirectory(fs)
 
 set(kernel_name kernel8)
 add_executable(${kernel_name}.elf main.c start.S)
-target_link_libraries(${kernel_name}.elf fs core asm driver aarch64 common user)
+target_link_libraries(${kernel_name}.elf core fs asm driver aarch64 common user)
+
+# because there's a cyclic dependency between core and fs, we need to link them
+# again to resolve "undefined reference" issues.
+target_link_libraries(${kernel_name}.elf core fs)
 
 set(kernel_prefix "${CMAKE_CURRENT_BINARY_DIR}/${kernel_name}")
 set(kernel_elf "${kernel_prefix}.elf")

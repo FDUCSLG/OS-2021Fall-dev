@@ -1,10 +1,9 @@
 #pragma once
 
-#include <common/defines.h>
 #include <common/list.h>
 #include <core/sleeplock.h>
 #include <fs/block_device.h>
-#include <fs/fs.h>
+#include <fs/defines.h>
 
 // maximum number of distinct blocks that one atomic operation can hold.
 #define OP_MAX_NUM_BLOCKS 10
