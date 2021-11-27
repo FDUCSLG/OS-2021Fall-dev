@@ -11,7 +11,7 @@ static const BlockDevice *device;
 
 static SpinLock lock;     // protects block cache.
 static Arena arena;       // memory pool for `Block` struct.
-static ListNode head;     // all allocated in-memory block list.
+static ListNode head;     // the list of all allocated in-memory block.
 static LogHeader header;  // in-memory copy of log header block.
 
 static usize last_allocated_ts;  // last timestamp assigned by `begin_op`.
@@ -19,7 +19,7 @@ static usize last_persisted_ts;  // last timestamp of atomic operation that is p
 
 static usize log_start;  // the block number that is next to the log header block.
 static usize log_size;   // maximum number of blocks that can be recorded in log.
-static usize log_used;   // number of entries in log reserved/used by uncommitted atomic operations.
+static usize log_used;   // number of log entries reserved/used by uncommitted atomic operations.
 
 static usize op_count;  // number of outstanding atomic operations that are not ended by `end_op`.
 

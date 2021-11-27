@@ -13,6 +13,22 @@ extern "C" {
 #include <random>
 #include <thread>
 
+namespace {
+
+constexpr int IN_CHILD = 0;
+
+static void wait_process(int pid) {
+    int wstatus;
+    waitpid(pid, &wstatus, 0);
+    if (!WIFEXITED(wstatus)) {
+        std::stringstream buf;
+        buf << "process [" << pid << "] exited abnormally";
+        throw Internal(buf.str());
+    }
+}
+
+}  // namespace
+
 namespace basic {
 
 void test_init() {
@@ -305,7 +321,160 @@ void test_global_absorption() {
     }
 }
 
-void test_concurrent_sync() {
+// target: replay at initialization.
+
+void test_replay() {
+    initialize_mock(50, 1000);
+
+    auto *header = mock.inspect_log_header();
+    header->num_blocks = 5;
+    for (usize i = 0; i < 5; i++) {
+        usize v = 500 + i;
+        header->block_no[i] = v;
+        auto *b = mock.inspect_log(i);
+        for (usize j = 0; j < BLOCK_SIZE; j++) {
+            b[j] = v & 0xff;
+        }
+    }
+
+    init_bcache(&sblock, &device);
+
+    assert_eq(header->num_blocks, 0);
+    for (usize i = 0; i < 5; i++) {
+        usize v = 500 + i;
+        auto *b = mock.inspect(v);
+        for (usize j = 0; j < BLOCK_SIZE; j++) {
+            assert_eq(b[j], v & 0xff);
+        }
+    }
+}
+
+// targets: `alloc`, `free`.
+
+void test_alloc() {
+    initialize(100, 100);
+
+    OpContext ctx;
+    bcache.begin_op(&ctx);
+
+    std::vector<usize> bno;
+    bno.reserve(100);
+    for (int i = 0; i < 100; i++) {
+        bno.push_back(bcache.alloc(&ctx));
+        assert_ne(bno[i], 0);
+        assert_true(bno[i] < sblock.num_blocks);
+
+        auto *b = bcache.acquire(bno[i]);
+        for (usize j = 0; j < BLOCK_SIZE; j++) {
+            b->data[j] = 0;
+        }
+        bcache.sync(NULL, b);
+        bcache.release(b);
+    }
+
+    std::sort(bno.begin(), bno.end());
+    usize count = std::unique(bno.begin(), bno.end()) - bno.begin();
+    assert_eq(count, bno.size());
+
+    bool panicked = false;
+    try {
+        usize b = bcache.alloc(&ctx);
+        assert_ne(b, 0);
+        assert_true(b < sblock.num_blocks);
+    } catch (const Panic &) { panicked = true; }
+
+    assert_eq(panicked, true);
+}
+
+void test_alloc_free() {
+    constexpr usize num_rounds = 5;
+    constexpr usize num_data_blocks = 1000;
+
+    initialize(100, num_data_blocks);
+
+    for (usize round = 0; round < num_rounds; round++) {
+        std::vector<usize> bno;
+        for (usize i = 0; i < num_data_blocks; i++) {
+            OpContext ctx;
+            bcache.begin_op(&ctx);
+            bno.push_back(bcache.alloc(&ctx));
+            bcache.end_op(&ctx);
+        }
+
+        for (usize b : bno) {
+            assert_true(b >= sblock.num_blocks - num_data_blocks);
+        }
+
+        for (usize i = 0; i < num_data_blocks; i += 2) {
+            usize no = bno[i];
+            assert_ne(no, 0);
+
+            OpContext ctx;
+            bcache.begin_op(&ctx);
+            bcache.free(&ctx, no);
+            bcache.end_op(&ctx);
+        }
+
+        OpContext ctx;
+        bcache.begin_op(&ctx);
+        usize no = bcache.alloc(&ctx);
+        assert_ne(no, 0);
+        for (usize i = 1; i < num_data_blocks; i += 2) {
+            assert_ne(bno[i], no);
+        }
+        bcache.free(&ctx, no);
+        bcache.end_op(&ctx);
+
+        for (usize i = 1; i < num_data_blocks; i += 2) {
+            bcache.begin_op(&ctx);
+            bcache.free(&ctx, bno[i]);
+            bcache.end_op(&ctx);
+        }
+    }
+}
+
+}  // namespace basic
+
+namespace concurrent {
+
+void test_acquire() {
+    constexpr usize num_rounds = 100;
+    constexpr usize num_workers = 64;
+
+    for (usize round = 0; round < num_rounds; round++) {
+        int child;
+        if ((child = fork()) == IN_CHILD) {
+            initialize(1, num_workers);
+
+            std::atomic<bool> flag = false;
+            std::vector<std::thread> workers;
+            for (usize i = 0; i < num_workers; i++) {
+                workers.emplace_back([&, i] {
+                    while (!flag) {
+                        std::this_thread::yield();
+                    }
+
+                    usize t = sblock.num_blocks - 1 - i;
+                    auto *b = bcache.acquire(t);
+                    assert_eq(b->block_no, t);
+                    assert_eq(b->valid, true);
+                    bcache.release(b);
+                });
+            }
+
+            flag = true;
+            for (auto &worker : workers) {
+                worker.join();
+            }
+
+            exit(0);
+        } else {
+            wait_process(child);
+        }
+    }
+}
+
+void test_sync() {
     constexpr int num_rounds = 100;
 
     initialize(OP_MAX_NUM_BLOCKS * OP_MAX_NUM_BLOCKS, OP_MAX_NUM_BLOCKS);
@@ -372,134 +541,9 @@ void test_concurrent_sync() {
     }
 }
 
-// targets: replay at initialization.
-
-void test_replay() {
-    initialize_mock(50, 1000);
-
-    auto *header = mock.inspect_log_header();
-    header->num_blocks = 5;
-    for (usize i = 0; i < 5; i++) {
-        usize v = 500 + i;
-        header->block_no[i] = v;
-        auto *b = mock.inspect_log(i);
-        for (usize j = 0; j < BLOCK_SIZE; j++) {
-            b[j] = v & 0xff;
-        }
-    }
-
-    init_bcache(&sblock, &device);
-
-    assert_eq(header->num_blocks, 0);
-    for (usize i = 0; i < 5; i++) {
-        usize v = 500 + i;
-        auto *b = mock.inspect(v);
-        for (usize j = 0; j < BLOCK_SIZE; j++) {
-            assert_eq(b[j], v & 0xff);
-        }
-    }
-}
-
-// targets: `alloc`, `free`.
-
-void test_alloc() {
-    initialize(100, 100);
-
-    OpContext ctx;
-    bcache.begin_op(&ctx);
-
-    std::vector<usize> bno;
-    bno.reserve(100);
-    for (int i = 0; i < 100; i++) {
-        bno.push_back(bcache.alloc(&ctx));
-        assert_ne(bno[i], 0);
-        assert_true(bno[i] < sblock.num_blocks);
-
-        auto *b = bcache.acquire(bno[i]);
-        for (usize j = 0; j < BLOCK_SIZE; j++) {
-            b->data[j] = 0;
-        }
-        bcache.sync(NULL, b);
-        bcache.release(b);
-    }
-
-    std::sort(bno.begin(), bno.end());
-    usize count = std::unique(bno.begin(), bno.end()) - bno.begin();
-    assert_eq(count, bno.size());
-
-    bool panicked = false;
-    try {
-        usize b = bcache.alloc(&ctx);
-        assert_ne(b, 0);
-        assert_true(b < sblock.num_blocks);
-        PAUSE;
-    } catch (const Panic &) { panicked = true; }
-
-    assert_eq(panicked, true);
-}
-
-void test_alloc_free() {
-    constexpr usize num_rounds = 5;
-    constexpr usize num_data_blocks = 1000;
-
-    initialize(100, num_data_blocks);
-
-    for (usize round = 0; round < num_rounds; round++) {
-        std::vector<usize> bno;
-        for (usize i = 0; i < num_data_blocks; i++) {
-            OpContext ctx;
-            bcache.begin_op(&ctx);
-            bno.push_back(bcache.alloc(&ctx));
-            bcache.end_op(&ctx);
-        }
-
-        for (usize b : bno) {
-            assert_true(b >= sblock.num_blocks - num_data_blocks);
-        }
-
-        for (usize i = 0; i < num_data_blocks; i += 2) {
-            usize no = bno[i];
-            assert_ne(no, 0);
-
-            OpContext ctx;
-            bcache.begin_op(&ctx);
-            bcache.free(&ctx, no);
-            bcache.end_op(&ctx);
-        }
-
-        OpContext ctx;
-        bcache.begin_op(&ctx);
-        usize no = bcache.alloc(&ctx);
-        assert_ne(no, 0);
-        for (usize i = 1; i < num_data_blocks; i += 2) {
-            assert_ne(bno[i], no);
-        }
-        bcache.free(&ctx, no);
-        bcache.end_op(&ctx);
-
-        for (usize i = 1; i < num_data_blocks; i += 2) {
-            bcache.begin_op(&ctx);
-            bcache.free(&ctx, bno[i]);
-            bcache.end_op(&ctx);
-        }
-    }
-}
-
-}  // namespace basic
+}  // namespace concurrent
 
 namespace crash {
-
-constexpr int IN_CHILD = 0;
-
-static void wait_process(int pid) {
-    int wstatus;
-    waitpid(pid, &wstatus, 0);
-    if (!WIFEXITED(wstatus)) {
-        std::stringstream buf;
-        buf << "process [" << pid << "] exited abnormally";
-        throw Internal(buf.str());
-    }
-}
 
 void test_simple_crash() {
     int child;
@@ -783,10 +827,12 @@ int main() {
         {"resident", basic::test_resident},
         {"local_absorption", basic::test_local_absorption},
         {"global_absorption", basic::test_global_absorption},
-        {"concurrent_sync", basic::test_concurrent_sync},
         {"replay", basic::test_replay},
         {"alloc", basic::test_alloc},
         {"alloc_free", basic::test_alloc_free},
+
+        {"concurrent_acquire", concurrent::test_acquire},
+        {"concurrent_sync", concurrent::test_sync},
 
         {"simple_crash", crash::test_simple_crash},
         {"single", [] { crash::test_parallel(1000, 1, 5, 0); }},

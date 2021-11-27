@@ -1,3 +1,4 @@
+#include "lock_config.hpp"
 #include "map.hpp"
 
 #include <condition_variable>
