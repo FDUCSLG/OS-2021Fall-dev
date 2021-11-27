@@ -9,6 +9,7 @@ extern "C" {
 #include "mock/block_device.hpp"
 
 #include <chrono>
+#include <condition_variable>
 #include <random>
 #include <thread>
 
@@ -301,6 +302,73 @@ void test_global_absorption() {
     for (usize i = op_size; i < OP_MAX_NUM_BLOCKS; i++) {
         auto *b = mock.inspect(t - i);
         assert_eq(b[0], 0xcc);
+    }
+}
+
+void test_concurrent_sync() {
+    constexpr int num_rounds = 100;
+
+    initialize(OP_MAX_NUM_BLOCKS * OP_MAX_NUM_BLOCKS, OP_MAX_NUM_BLOCKS);
+
+    std::mutex mtx;
+    std::condition_variable cv;
+    OpContext ctx;
+    int count = -1, round = -1;
+
+    auto cookie = [](int i, int j) { return (i + 1) * 1926 + j + 817; };
+
+    std::vector<std::thread> workers;
+    for (int i = 0; i < OP_MAX_NUM_BLOCKS; i++) {
+        workers.emplace_back([&, i] {
+            usize t = sblock.num_blocks - 1 - i;
+            for (int j = 0; j < num_rounds; j++) {
+                {
+                    std::unique_lock lock(mtx);
+                    cv.wait(lock, [&] { return j <= round; });
+                }
+
+                auto *b = bcache.acquire(t);
+                int *p = reinterpret_cast<int *>(b->data);
+                *p = cookie(i, j);
+                bcache.sync(&ctx, b);
+                bcache.release(b);
+
+                {
+                    std::unique_lock lock(mtx);
+                    count++;
+                }
+
+                cv.notify_all();
+            }
+        });
+    }
+
+    auto check = [&](int j) {
+        for (int i = 0; i < OP_MAX_NUM_BLOCKS; i++) {
+            int *b = reinterpret_cast<int *>(mock.inspect(sblock.num_blocks - 1 - i));
+            assert_eq(*b, cookie(i, j));
+        }
+    };
+
+    {
+        std::unique_lock lock(mtx);
+        for (int j = 0; j < num_rounds; j++) {
+            bcache.begin_op(&ctx);
+            round = j;
+            count = 0;
+            cv.notify_all();
+
+            cv.wait(lock, [&] { return count >= OP_MAX_NUM_BLOCKS; });
+
+            if (j > 0)
+                check(j - 1);
+            bcache.end_op(&ctx);
+            check(j);
+        }
+    }
+
+    for (auto &worker : workers) {
+        worker.join();
     }
 }
 
@@ -715,6 +783,7 @@ int main() {
         {"resident", basic::test_resident},
         {"local_absorption", basic::test_local_absorption},
         {"global_absorption", basic::test_global_absorption},
+        {"concurrent_sync", basic::test_concurrent_sync},
         {"replay", basic::test_replay},
         {"alloc", basic::test_alloc},
         {"alloc_free", basic::test_alloc_free},
