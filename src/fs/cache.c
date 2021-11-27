@@ -14,14 +14,14 @@ static Arena arena;       // memory pool for `Block` struct.
 static ListNode head;     // all allocated in-memory block list.
 static LogHeader header;  // in-memory copy of log header block.
 
-static usize last_allocated_ts;  // last timestamp assigned by a `begin_op`.
+static usize last_allocated_ts;  // last timestamp assigned by `begin_op`.
 static usize last_persisted_ts;  // last timestamp of atomic operation that is persisted to disk.
 
-static usize log_start;  // the number of block that is next to the log header block.
+static usize log_start;  // the block number that is next to the log header block.
 static usize log_size;   // maximum number of blocks that can be recorded in log.
-static usize log_used;   // number of entries in log reserved/used by current atomic operations.
+static usize log_used;   // number of entries in log reserved/used by uncommitted atomic operations.
 
-static usize op_count;  // number of outstanding atomic operations.
+static usize op_count;  // number of outstanding atomic operations that are not ended by `end_op`.
 
 // read the content from disk.
 static INLINE void device_read(Block *block) {
