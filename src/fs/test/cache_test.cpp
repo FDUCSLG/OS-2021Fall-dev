@@ -122,6 +122,30 @@ void test_reuse() {
     assert_eq(wcnt, 0);
 }
 
+void test_lru() {
+    std::mt19937 gen(0xdeadbeef);
+
+    usize cold_size = 1000;
+    usize hot_size = EVICTION_THRESHOLD * 0.8;
+    initialize(1, cold_size + hot_size);
+    for (int i = 0; i < 1000; i++) {
+        bool hot = (gen() % 100) <= 90;
+        usize bno = hot ? (gen() % hot_size) : (hot_size + gen() % cold_size);
+
+        auto *b = bcache.acquire(bno);
+        auto *d = mock.inspect(bno);
+        assert_eq(b->data[123], d[123]);
+        bcache.release(b);
+    }
+
+    printf("(debug) #cached = %zu, #read = %zu\n",
+           bcache.get_num_cached_blocks(),
+           mock.read_count.load());
+    assert_true(bcache.get_num_cached_blocks() <= EVICTION_THRESHOLD);
+    assert_true(mock.read_count < 233);
+    assert_true(mock.write_count < 5);
+}
+
 // targets: `begin_op`, `end_op`, `sync`.
 
 void test_atomic_op() {
@@ -354,33 +378,40 @@ void test_replay() {
 void test_alloc() {
     initialize(100, 100);
 
-    OpContext ctx;
-    bcache.begin_op(&ctx);
-
     std::vector<usize> bno;
     bno.reserve(100);
     for (int i = 0; i < 100; i++) {
+        OpContext ctx;
+        bcache.begin_op(&ctx);
+
         bno.push_back(bcache.alloc(&ctx));
         assert_ne(bno[i], 0);
         assert_true(bno[i] < sblock.num_blocks);
 
         auto *b = bcache.acquire(bno[i]);
         for (usize j = 0; j < BLOCK_SIZE; j++) {
-            b->data[j] = 0;
+            assert_eq(b->data[j], 0);
         }
-        bcache.sync(NULL, b);
         bcache.release(b);
+
+        bcache.end_op(&ctx);
+        auto *d = mock.inspect(bno[i]);
+        for (usize j = 0; j < BLOCK_SIZE; j++) {
+            assert_eq(d[j], 0);
+        }
     }
 
     std::sort(bno.begin(), bno.end());
     usize count = std::unique(bno.begin(), bno.end()) - bno.begin();
     assert_eq(count, bno.size());
 
+    OpContext ctx;
+    bcache.begin_op(&ctx);
+
     bool panicked = false;
     try {
         usize b = bcache.alloc(&ctx);
         assert_ne(b, 0);
-        assert_true(b < sblock.num_blocks);
     } catch (const Panic &) { panicked = true; }
 
     assert_eq(panicked, true);
@@ -539,6 +570,34 @@ void test_sync() {
     for (auto &worker : workers) {
         worker.join();
     }
+}
+
+void test_alloc() {
+    initialize(100, 1000);
+
+    std::vector<usize> bno(1000);
+    std::vector<std::thread> workers;
+    for (usize i = 0; i < 4; i++) {
+        workers.emplace_back([&, i] {
+            usize t = 250 * i;
+            for (usize j = 0; j < 250; j++) {
+                OpContext ctx;
+                bcache.begin_op(&ctx);
+                bno[t + j] = bcache.alloc(&ctx);
+                bcache.end_op(&ctx);
+            }
+        });
+    }
+
+    for (auto &worker : workers) {
+        worker.join();
+    }
+
+    std::sort(bno.begin(), bno.end());
+    usize count = std::unique(bno.begin(), bno.end()) - bno.begin();
+    assert_eq(count, 1000);
+    assert_true(bno.front() >= sblock.num_blocks - 1000);
+    assert_true(bno.back() < sblock.num_blocks);
 }
 
 }  // namespace concurrent
@@ -704,28 +763,23 @@ void test_banker() {
     for (usize round = 0; round < num_rounds; round++) {
         int child;
         if ((child = fork()) == IN_CHILD) {
-            initialize_mock(log_size, num_accounts);
-            // mock.on_read = [](...) { std::this_thread::sleep_for(200us); };
-            // mock.on_write = [](...) { std::this_thread::sleep_for(500us); };
-
-            usize t = sblock.num_blocks - num_accounts;
-            for (usize i = 0; i < num_accounts; i++) {
-                i64 *p = reinterpret_cast<i64 *>(mock.inspect(t + i));
-                *p = initial;
-            }
-
-            init_bcache(&sblock, &device);
+            initialize(log_size, num_accounts);
 
             auto begin_ts = std::chrono::steady_clock::now();
 
-            OpContext ctx;
-            bcache.begin_op(&ctx);
             std::vector<usize> bno;
             bno.reserve(num_accounts);
             for (usize i = 0; i < num_accounts; i++) {
+                OpContext ctx;
+                bcache.begin_op(&ctx);
                 bno.push_back(bcache.alloc(&ctx));
+                auto *b = bcache.acquire(bno.back());
+                i64 *p = reinterpret_cast<i64 *>(b->data);
+                *p = initial;
+                bcache.sync(&ctx, b);
+                bcache.release(b);
+                bcache.end_op(&ctx);
             }
-            bcache.end_op(&ctx);
 
             std::random_device rd;
             std::atomic<usize> count = 0;
@@ -822,6 +876,7 @@ int main() {
         {"read_write", basic::test_read_write},
         {"loop_read", basic::test_loop_read},
         {"reuse", basic::test_reuse},
+        {"lru", basic::test_lru},
         {"atomic_op", basic::test_atomic_op},
         {"overflow", basic::test_overflow},
         {"resident", basic::test_resident},
@@ -833,6 +888,7 @@ int main() {
 
         {"concurrent_acquire", concurrent::test_acquire},
         {"concurrent_sync", concurrent::test_sync},
+        {"concurrent_alloc", concurrent::test_alloc},
 
         {"simple_crash", crash::test_simple_crash},
         {"single", [] { crash::test_parallel(1000, 1, 5, 0); }},

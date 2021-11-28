@@ -80,8 +80,24 @@ static void init_block(Block *block) {
     memset(block->data, 0, sizeof(block->data));
 }
 
+static usize _get_num_cached_blocks() {
+    usize count = 0;
+    for (ListNode *x = head.next; x != &head; x = x->next) {
+        count++;
+    }
+    return count;
+}
+
 // see `cache.h`.
-Block *cache_acquire(usize block_no) {
+static usize get_num_cached_blocks() {
+    acquire_spinlock(&lock);
+    usize count = _get_num_cached_blocks();
+    release_spinlock(&lock);
+    return count;
+}
+
+// see `cache.h`.
+static Block *cache_acquire(usize block_no) {
     acquire_spinlock(&lock);
 
     Block *slot = NULL;
@@ -93,22 +109,31 @@ Block *cache_acquire(usize block_no) {
         }
 
         // find a candidate to be evicted.
-        if (!slot && !block->acquired && !block->pinned)
+        if (!block->acquired && !block->pinned)
             slot = block;
     }
 
-    // when not found and no block can be evicted.
+    if (slot && slot->block_no != block_no) {
+        if (_get_num_cached_blocks() >= EVICTION_THRESHOLD) {
+            slot->block_no = block_no;
+            slot->valid = false;
+        } else {
+            // no need to evict. Just allocate a new one.
+            slot = NULL;
+        }
+    }
+
+    // when not found and no block is going to be evicted.
     if (!slot) {
         slot = alloc_object(&arena);
         assert(slot != NULL);
         init_block(slot);
-        merge_list(&head, &slot->node);
+        slot->block_no = block_no;
     }
 
-    if (slot->block_no != block_no) {
-        slot->block_no = block_no;
-        slot->valid = false;
-    }
+    // move to the front.
+    detach_from_list(&slot->node);
+    merge_list(&head, &slot->node);
 
     // NOTE: set `acquired` before releasing cache lock to prevent someone evicting
     // this block in the window between `release` and `acquire`.
@@ -126,7 +151,7 @@ Block *cache_acquire(usize block_no) {
 }
 
 // see `cache.h`.
-void cache_release(Block *block) {
+static void cache_release(Block *block) {
     release_sleeplock(&block->lock);
     acquire_spinlock(&lock);
     block->acquired = false;
@@ -134,7 +159,7 @@ void cache_release(Block *block) {
 }
 
 // see `cache.h`.
-void cache_begin_op(OpContext *ctx) {
+static void cache_begin_op(OpContext *ctx) {
     init_spinlock(&ctx->lock, "atomic operation context");
     ctx->ts = 0;
     ctx->num_blocks = 0;
@@ -154,7 +179,7 @@ void cache_begin_op(OpContext *ctx) {
 }
 
 // see `cache.h`.
-void cache_sync(OpContext *ctx, Block *block) {
+static void cache_sync(OpContext *ctx, Block *block) {
     if (ctx) {
         acquire_spinlock(&ctx->lock);
 
@@ -264,7 +289,7 @@ static void checkpoint() {
 }
 
 // see `cache.h`.
-void cache_end_op(OpContext *ctx) {
+static void cache_end_op(OpContext *ctx) {
     acquire_spinlock(&lock);
 
     commit(ctx);
@@ -305,7 +330,7 @@ void cache_end_op(OpContext *ctx) {
 
 // see `cache.h`.
 // hint: you can use `cache_acquire`/`cache_sync` to read/write blocks.
-usize cache_alloc(OpContext *ctx) {
+static usize cache_alloc(OpContext *ctx) {
     for (usize i = 0; i < sblock->num_blocks; i += BIT_PER_BLOCK) {
         usize block_no = sblock->bitmap_start + (i / BIT_PER_BLOCK);
         Block *block = cache_acquire(block_no);
@@ -316,7 +341,13 @@ usize cache_alloc(OpContext *ctx) {
                 bitmap_set(bitmap, j);
                 cache_sync(ctx, block);
                 cache_release(block);
-                return i + j;
+
+                block_no = i + j;
+                block = cache_acquire(block_no);
+                memset(block->data, 0, BLOCK_SIZE);
+                cache_sync(ctx, block);
+                cache_release(block);
+                return block_no;
             }
         }
 
@@ -328,7 +359,7 @@ usize cache_alloc(OpContext *ctx) {
 
 // see `cache.h`.
 // hint: you can use `cache_acquire`/`cache_sync` to read/write blocks.
-void cache_free(OpContext *ctx, usize block_no) {
+static void cache_free(OpContext *ctx, usize block_no) {
     usize i = block_no / BIT_PER_BLOCK, j = block_no % BIT_PER_BLOCK;
     Block *block = cache_acquire(sblock->bitmap_start + i);
 
@@ -341,6 +372,7 @@ void cache_free(OpContext *ctx, usize block_no) {
 }
 
 BlockCache bcache = {
+    .get_num_cached_blocks = get_num_cached_blocks,
     .acquire = cache_acquire,
     .release = cache_release,
     .begin_op = cache_begin_op,
