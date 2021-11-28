@@ -675,8 +675,10 @@ void test_parallel(usize num_rounds, usize num_workers, usize delay_ms, usize lo
 
             init_bcache(&sblock, &device);
 
+            std::atomic<bool> started = false;
             for (usize i = 0; i < num_workers; i++) {
                 std::thread([&, i] {
+                    started = true;
                     usize t = 200 + i * OP_MAX_NUM_BLOCKS;
                     try {
                         u64 v = 0;
@@ -702,6 +704,7 @@ void test_parallel(usize num_rounds, usize num_workers, usize delay_ms, usize lo
 
             // disk will power off after `delay_ms` ms.
             std::thread aha([&] {
+                while (!started) {}
                 std::this_thread::sleep_for(std::chrono::milliseconds(delay_ms));
                 mock.offline = true;
             });
@@ -783,10 +786,12 @@ void test_banker() {
 
             std::random_device rd;
             std::atomic<usize> count = 0;
+            std::atomic<bool> started = false;
             for (usize i = 0; i < num_workers; i++) {
                 std::thread([&] {
                     std::mt19937 gen(rd());
 
+                    started = true;
                     try {
                         while (true) {
                             usize j = gen() % num_accounts, k = gen() % num_accounts;
@@ -824,8 +829,8 @@ void test_banker() {
                 }).detach();
             }
 
+            while (!started) {}
             std::this_thread::sleep_for(2s);
-
             mock.offline = true;
 
             auto end_ts = std::chrono::steady_clock::now();
