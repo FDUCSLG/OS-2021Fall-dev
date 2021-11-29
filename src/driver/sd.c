@@ -1044,7 +1044,7 @@ static u32 sdGetClockDivider(u32 freq) {
         divisor = closest;
     // Version 2 take power 2
     else
-        divisor = (1 << shiftcount);
+        divisor = (1u << shiftcount);
 
     if (divisor <= 2) {  // Too dangerous to go for divisor 1 unless you test
         divisor = 2;     // You can't take divisor below 2 on slow cards
@@ -1438,8 +1438,8 @@ static void sdParseCID() {
 
     // For some reason cards I have looked at seem to have the Y/M in
     // bits 11:0 whereas the spec says they should be in bits 19:8
-    int dateY = ((sdCard.cid[3] & 0x00000ff0) >> 4) + 2000;
-    int dateM = (sdCard.cid[3] & 0x0000000f);
+    int dateY = (int)((sdCard.cid[3] & 0x00000ff0) >> 4) + 2000;
+    int dateM = (int)(sdCard.cid[3] & 0x0000000f);
 
     printf("- EMMC: SD Card %s %dMb UHS-I %d mfr %d '%s:%s' r%d.%d %d/%d, #%x RCA %x\n",
            SD_TYPE_NAME[sdCard.type],
