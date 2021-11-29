@@ -12,6 +12,10 @@
 // evict some blocks in `acquire` to keep block cache small.
 #define EVICTION_THRESHOLD 20
 
+// hint: `cache_test` only requires `block_no`, `valid` and `data` are present
+// in this struct. All other struct members can be customized by yourself.
+// for example, if you want to implement LFU strategy instead, you can add a counter
+// inside `Block` to maintain the number of times it was accessed.
 typedef struct {
     // accesses to the following 4 members should be guarded by the lock
     // of the block cache.
@@ -28,16 +32,15 @@ typedef struct {
 // `OpContext` represents an atomic operation.
 // see `begin_op` and `end_op`.
 typedef struct {
-    SpinLock lock;
-    usize ts;                           // the timestamp/identifier allocated by `begin_op`.
-    usize num_blocks;                   // number of blocks in `block_no` array, i.e. log entries.
-    usize block_no[OP_MAX_NUM_BLOCKS];  // blocks associated with this atomic operation.
+    usize ts;  // the timestamp/identifier allocated by `begin_op`.
+
+    // hint: you may want to add something else here.
 } OpContext;
 
 typedef struct BlockCache {
     // for testing.
     // get the number of cached blocks.
-    // or the number of allocated `Block` struct.
+    // or in other words, the number of allocated `Block` struct.
     usize (*get_num_cached_blocks)();
 
     // read the content of block at `block_no` from disk, and lock the block.
@@ -71,6 +74,8 @@ typedef struct BlockCache {
     // if `ctx` is not NULL, the actual writeback is delayed until `end_op`.
     //
     // NOTE: the caller must hold the lock of `block`.
+    // NOTE: if the number of blocks associated with `ctx` is larger than `OP_MAX_NUM_BLOCKS`
+    // after `sync`, `sync` should panic.
     void (*sync)(OpContext *ctx, Block *block);
 
     // end the atomic operation managed by `ctx`.
@@ -88,6 +93,8 @@ typedef struct BlockCache {
 
     // allocate a new zero-initialized block, by searching bitmap for a free block.
     // block number is returned.
+    //
+    // NOTE: if there's no free block on disk, `alloc` should panic.
     usize (*alloc)(OpContext *ctx);
 
     // mark block at `block_no` is free in bitmap.
