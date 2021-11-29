@@ -7,6 +7,7 @@
 #include <core/sched.h>
 #include <core/virtual_memory.h>
 #include <driver/sd.h>
+#include <fs/fs.h>
 
 void forkret();
 extern void trap_return();
@@ -91,6 +92,7 @@ void spawn_init_process() {
 void forkret() {
     release_sched_lock();
     if (!__atomic_test_and_set(&flag_atom, 1)) {
+        init_filesystem();
         sd_test();
     }
 }
