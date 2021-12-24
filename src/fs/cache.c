@@ -188,6 +188,7 @@ static void cache_sync(OpContext *ctx, Block *block) {
             if (ctx->block_no[i] == block->block_no)
                 break;
         }
+
         assert(i < OP_MAX_NUM_BLOCKS);
         ctx->block_no[i] = block->block_no;
         if (i >= ctx->num_blocks)

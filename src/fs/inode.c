@@ -141,10 +141,10 @@ static Inode *inode_get(usize inode_no) {
 
     release_spinlock(&lock);
 
-    // inode_lock(inode);
+    inode_lock(inode);
     inode_sync(NULL, inode, false);
-    // assert(inode->entry.type != INODE_INVALID);
-    // inode_unlock(inode);
+    assert(inode->entry.type != INODE_INVALID);
+    inode_unlock(inode);
     return inode;
 }
 
@@ -431,6 +431,10 @@ static Inode *namex(const char *path, int nameiparent, char *name, OpContext *ct
         }
         if (nameiparent && *path == '\0') {
             // Stop one level early.
+            inodes.unlock(ip);
+            return ip;
+        }
+        if (*path == '.' && *(path + 1) == '\0') {
             inodes.unlock(ip);
             return ip;
         }
