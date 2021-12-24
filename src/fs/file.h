@@ -9,7 +9,7 @@
 
 #define NFILE 100  // Open files per system
 
-struct file {
+typedef struct file {
     enum { FD_NONE, FD_PIPE, FD_INODE } type;
     int ref;
     char readable;
@@ -17,53 +17,8 @@ struct file {
     struct pipe *pipe;
     Inode *ip;
     usize off;
-};
+} File;
 
-/* In-memory copy of an inode. */
-// struct inode {
-//     u32 dev;             // Device number
-//     u32 inum;            // Inode number
-//     int ref;                  // Reference count
-//     struct SleepLock lock;    // Protects everything below here
-//     int valid;                // Inode has been read from disk?
-
-//     u16 type;            // Copy of disk inode
-//     u16 major;
-//     u16 minor;
-//     u16 nlink;
-//     u32 size;
-//     u32 addrs[INODE_NUM_DIRECT+1];
-// };
-
-/*
- * Table mapping major device number to
- * device functions
- */
-struct devsw {
-    isize (*read)(Inode *, char *, isize);
-    isize (*write)(Inode *, char *, isize);
-};
-
-extern struct devsw devsw[];
-
-// void readsb(int, struct SuperBlock *);
-// int             inodes.insert(&ctx, struct inode*, char*, u32);
-// int             dirunlink(Inode *, char *, u32);
-// Inode *  dirlookup(Inode *, char *, usize *);
-// Inode *  ialloc(u32, short);
-// Inode *  idup(Inode *);
-// void            iinit(int dev);
-// void            ilock(Inode *);
-// void            iput(Inode *);
-// void            inodes.unlock(Inode *);
-// void            iunlockput(Inode *);
-// void            iupdate(Inode *);
-// int             namecmp(const char *, const char *);
-// Inode *  namei(char *);
-// Inode *  nameiparent(char *, char *);
-// void            stati(Inode *, struct stat *);
-// isize         inodes.read(Inode *, char *, usize, usize);
-// isize         writei(Inode *, char *, usize, usize);
 
 void fileinit();
 struct file *filealloc();
