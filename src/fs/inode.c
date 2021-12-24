@@ -2,6 +2,8 @@
 #include <core/arena.h>
 #include <core/console.h>
 #include <core/physical_memory.h>
+#include <core/proc.h>
+#include <core/sched.h>
 #include <fs/inode.h>
 
 // this lock mainly prevents concurrent access to inode list `head`, reference
@@ -139,10 +141,10 @@ static Inode *inode_get(usize inode_no) {
 
     release_spinlock(&lock);
 
-    inode_lock(inode);
+    // inode_lock(inode);
     inode_sync(NULL, inode, false);
-    assert(inode->entry.type != INODE_INVALID);
-    inode_unlock(inode);
+    // assert(inode->entry.type != INODE_INVALID);
+    // inode_unlock(inode);
     return inode;
 }
 
@@ -252,10 +254,18 @@ static usize inode_map(OpContext *ctx, Inode *inode, usize offset, bool *modifie
 }
 
 // see `inode.h`.
-static void inode_read(Inode *inode, u8 *dest, usize offset, usize count) {
+static usize inode_read(Inode *inode, u8 *dest, usize offset, usize count) {
     InodeEntry *entry = &inode->entry;
+
+    if (inode->entry.type == INODE_DEVICE) {
+        assert(inode->entry.major == 1);
+        return console_read(inode, dest, count);
+    }
+    if (count + offset > entry->num_bytes)
+        count = entry->num_bytes - offset;
     usize end = offset + count;
     assert(offset <= entry->num_bytes);
+
     assert(end <= entry->num_bytes);
     assert(offset <= end);
 
@@ -271,12 +281,17 @@ static void inode_read(Inode *inode, u8 *dest, usize offset, usize count) {
         memmove(dest, block->data + index, step);
         cache->release(block);
     }
+    return count;
 }
 
 // see `inode.h`.
-static void inode_write(OpContext *ctx, Inode *inode, u8 *src, usize offset, usize count) {
+static usize inode_write(OpContext *ctx, Inode *inode, u8 *src, usize offset, usize count) {
     InodeEntry *entry = &inode->entry;
     usize end = offset + count;
+    if (inode->entry.type == INODE_DEVICE) {
+        assert(inode->entry.major == 1);
+        return console_write(inode, src, count);
+    }
     assert(offset <= entry->num_bytes);
     assert(end <= INODE_MAX_BYTES);
     assert(offset <= end);
@@ -299,6 +314,7 @@ static void inode_write(OpContext *ctx, Inode *inode, u8 *src, usize offset, usi
     }
     if (modified)
         inode_sync(ctx, inode, true);
+    return count;
 }
 
 // see `inode.h`.
@@ -352,6 +368,118 @@ static void inode_remove(OpContext *ctx, Inode *inode, usize index) {
     inode_write(ctx, inode, (u8 *)&dentry, offset, sizeof(dentry));
 }
 
+/* Paths. */
+
+/* Copy the next path element from path into name.
+ *
+ * Return a pointer to the element following the copied one.
+ * The returned path has no leading slashes,
+ * so the caller can check *path=='\0' to see if the name is the last one.
+ * If no name to remove, return 0.
+ *
+ * Examples:
+ *   skipelem("a/bb/c", name) = "bb/c", setting name = "a"
+ *   skipelem("///a//bb", name) = "bb", setting name = "a"
+ *   skipelem("a", name) = "", setting name = "a"
+ *   skipelem("", name) = skipelem("////", name) = 0
+ */
+static const char *skipelem(const char *path, char *name) {
+    const char *s;
+    int len;
+
+    while (*path == '/')
+        path++;
+    if (*path == 0)
+        return 0;
+    s = path;
+    while (*path != '/' && *path != 0)
+        path++;
+    len = path - s;
+    if (len >= FILE_NAME_MAX_LENGTH)
+        memmove(name, s, FILE_NAME_MAX_LENGTH);
+    else {
+        memmove(name, s, len);
+        name[len] = 0;
+    }
+    while (*path == '/')
+        path++;
+    return path;
+}
+
+/* Look up and return the inode for a path name.
+ * 
+ * If parent != 0, return the inode for the parent and copy the final
+ * path element into name, which must have room for DIRSIZ bytes.
+ * Must be called inside a transaction since it calls iput().
+ */
+static Inode *namex(const char *path, int nameiparent, char *name, OpContext *ctx) {
+    Inode *ip, *next;
+
+    if (*path == '/')
+        ip = inodes.get(1);
+    else
+        ip = inodes.share(thiscpu()->proc->cwd);
+
+    while ((path = skipelem(path, name)) != 0) {
+        inodes.lock(ip);
+        if (ip->entry.type != INODE_DIRECTORY) {
+            inodes.unlock(ip);
+            bcache.begin_op(ctx);
+            inodes.put(ctx, ip);
+            bcache.end_op(ctx);
+            return 0;
+        }
+        if (nameiparent && *path == '\0') {
+            // Stop one level early.
+            inodes.unlock(ip);
+            return ip;
+        }
+        if (inodes.lookup(ip, name, 0) == 0) {
+            inodes.unlock(ip);
+            inodes.put(ctx, ip);
+            return 0;
+        }
+        next = inodes.get(inodes.lookup(ip, name, 0));
+        inodes.unlock(ip);
+        inodes.put(ctx, ip);
+        ip = next;
+    }
+    if (nameiparent) {
+        bcache.begin_op(ctx);
+        inodes.put(ctx, ip);
+        bcache.end_op(ctx);
+        return 0;
+    }
+    return ip;
+}
+
+Inode *namei(const char *path, OpContext *ctx) {
+    char name[FILE_NAME_MAX_LENGTH];
+    return namex(path, 0, name, ctx);
+}
+
+Inode *nameiparent(const char *path, char *name, OpContext *ctx) {
+    return namex(path, 1, name, ctx);
+}
+
+/*
+ * Copy stat information from inode.
+ * Caller must hold ip->lock.
+ */
+void stati(Inode *ip, struct stat *st) {
+    // FIXME: support other field in stat
+    st->st_dev = 1;
+    st->st_ino = ip->inode_no;
+    st->st_nlink = ip->entry.num_links;
+    st->st_size = ip->entry.num_bytes;
+
+    switch (ip->entry.type) {
+        case INODE_REGULAR: st->st_mode = S_IFREG; break;
+        case INODE_DIRECTORY: st->st_mode = S_IFDIR; break;
+        case INODE_DEVICE: st->st_mode = 0; break;
+        default: PANIC("unexpected stat type %d. ", ip->entry.type);
+    }
+}
 InodeTree inodes = {
     .alloc = inode_alloc,
     .lock = inode_lock,
