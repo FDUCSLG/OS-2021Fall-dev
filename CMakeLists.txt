@@ -48,7 +48,7 @@ add_custom_target(debug
             -ex "target remote localhost:1234"
     DEPENDS kernel)
 add_custom_target(init_libc
-	COMMAND cd ../libc &&
+	COMMAND git submodule update --init && cd ../libc &&
 			 export CROSS_COMPILE=${aarch64_prefix} &&
 			 ./configure --target=aarch64)
 
