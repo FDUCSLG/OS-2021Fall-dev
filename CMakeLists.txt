@@ -27,8 +27,20 @@ get_property(kernel_elf GLOBAL PROPERTY kernel_elf_path)
 get_property(kernel_image GLOBAL PROPERTY kernel_image_path)
 get_property(sd_image GLOBAL PROPERTY sd_image_path)
 
+execute_process(
+    COMMAND sh -c "qemu-system-aarch64 --version | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+'"
+    OUTPUT_VARIABLE qemu_version
+    OUTPUT_STRIP_TRAILING_WHITESPACE)
+
+if (qemu_version VERSION_LESS "6.2.0")
+    set(qemu_machine "raspi3")
+else()
+    set(qemu_machine "raspi3b")
+endif()
+message("QEMU version: " ${qemu_version} ". Use " ${qemu_machine} ".")
+
 set(qemu_flags
-    -M "raspi3"
+    -machine ${qemu_machine}
     -nographic
     -serial "null"
     -serial "mon:stdio"
@@ -37,23 +49,38 @@ set(qemu_flags
 
 add_custom_target(qemu
     COMMAND ${aarch64_qemu} ${qemu_flags} -gdb tcp::1234
-    DEPENDS image)
+    DEPENDS sd-image)
 add_custom_target(qemu-debug
     COMMAND ${aarch64_qemu} ${qemu_flags} -gdb tcp::1234 -S
-    DEPENDS image)
+    DEPENDS sd-image)
 add_custom_target(debug
     COMMAND ${aarch64_gdb} --nx --quiet
             -ex "set architecture aarch64"
             -ex "file ${kernel_elf}"
             -ex "target remote localhost:1234"
     DEPENDS kernel)
-add_custom_target(init_libc
-	COMMAND git submodule update --init && cd ../libc &&
-			 export CROSS_COMPILE=${aarch64_prefix} &&
-			 ./configure --target=aarch64)
 
-set(LIBC_SPEC ${CMAKE_CURRENT_SOURCE_DIR}/libc/lib/musl-gcc.specs)
-set(LIBC_SPEC_OUT musl-gcc.specs)
-add_custom_target(libc
-	COMMAND make -C ../libc -j12 &&
-	sed -e \"s/\\/usr\\/local\\/musl/..\\/..\\/..\\/libc/g\" ${LIBC_SPEC} > ${LIBC_SPEC_OUT})
+set(musl_config ${CMAKE_CURRENT_SOURCE_DIR}/libc/config.mak)
+add_custom_command(
+    COMMENT "Generating musl configuration..."
+    OUTPUT ${musl_config}
+    COMMAND git submodule update --init &&
+            cd ../libc &&
+            CROSS_COMPILE=${aarch64_prefix} ./configure --target=aarch64 --enable-optimize --disable-debug)
+add_custom_target(init-libc ALL DEPENDS ${musl_config})
+
+set(musl_specs ${CMAKE_CURRENT_SOURCE_DIR}/libc/lib/musl-gcc.specs)
+set(libc_specs musl-gcc.specs)
+add_custom_command(
+    COMMENT "Compiling musl..."
+    OUTPUT ${libc_specs}
+    COMMAND env "MAKEFLAGS=$(subst s,,$(MAKEFLAGS))" make -C ../libc &&
+            sed -e 's/\\/usr\\/local\\/musl/..\\/..\\/..\\/libc/g' ${musl_specs} > ${libc_specs}
+    DEPENDS init-libc)
+
+add_custom_target(libc ALL DEPENDS ${libc_specs})
+
+add_custom_target(clean-libc
+    COMMAND cd ../libc &&
+            make clean
+    DEPENDS init-libc)

@@ -3,14 +3,17 @@ set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_COMPILER ${aarch64_gcc})
 set(CMAKE_ASM_COMPILER ${aarch64_gcc})
 
-include_directories(${CMAKE_CURRENT_SOURCE_DIR})
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../libc/obj/include)
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../libc/include)
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../libc/arch/aarch64)
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../libc/arch/generic)
+include_directories(.)
+include_directories(../libc/obj/include)
+include_directories(../libc/include)
+include_directories(../libc/arch/aarch64)
+include_directories(../libc/arch/generic)
 
 set(compiler_warnings "-Wall -Wextra \
-    -Wconversion -Wsign-conversion")
+    -Wconversion -Wsign-conversion \
+    -Wno-initializer-overrides \
+    -Wno-override-init \
+    -Wno-cast-function-type")
 set(compiler_flags "${compiler_warnings} \
     -fno-pie -fno-pic -fno-stack-protector \
     -fno-zero-initialized-in-bss \
@@ -68,7 +71,7 @@ add_custom_command(
     COMMAND ${aarch64_objcopy} -O binary ${kernel_elf} ${kernel_img}
     DEPENDS ${kernel_elf})
 
-add_custom_target(kernel ALL DEPENDS ${kernel_asm} ${kernel_hdr} ${kernel_img})
+add_custom_target(kernel ALL DEPENDS ${kernel_asm} ${kernel_hdr} ${kernel_img} libc)
 
 set_property(GLOBAL PROPERTY kernel_elf_path ${kernel_elf})
 set_property(GLOBAL PROPERTY kernel_image_path ${kernel_img})

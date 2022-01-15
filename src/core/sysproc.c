@@ -12,12 +12,12 @@ int sys_yield() {
 
 usize sys_brk() {
     u64 n;
-    if (argint(0, &n) < 0) {
-        return -1;
+    if (argint(0, (int *)&n) < 0) {
+        return (usize)-1;
     }
     usize sz = thiscpu()->proc->sz;
-    if (growproc(n) < 0) {
-        return -1;
+    if (growproc((int)n) < 0) {
+        return (usize)-1;
     }
     return sz;
 }
@@ -25,7 +25,7 @@ usize sys_brk() {
 int sys_clone() {
     void *childstk;
     i32 flag;
-    if (argint(0, &flag) < 0 || argint(1, &childstk) < 0)
+    if (argint(0, &flag) < 0 || argint(1, (int *)&childstk) < 0)
         return -1;
     if (flag != 17) {
         printf("sys_clone: flags other than SIGCHLD are not supported.\n");
@@ -38,8 +38,8 @@ int sys_wait4() {
     i32 pid, opt;
     int *wstatus;
     void *rusage;
-    if (argint(0, &pid) < 0 || argint(1, &wstatus) < 0 || argint(2, &opt) < 0 ||
-        argint(3, &rusage) < 0)
+    if (argint(0, &pid) < 0 || argint(1, (int *)&wstatus) < 0 || argint(2, &opt) < 0 ||
+        argint(3, (int *)&rusage) < 0)
         return -1;
 
     // if (pid != -1 || wstatus != 0 || opt != 0 || rusage != 0) {

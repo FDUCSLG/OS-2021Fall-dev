@@ -78,7 +78,7 @@ isize sys_read() {
     char *addr;
     i32 n;
 
-    if (argfd(0, 0, &f) < 0 || argint(2, &n) < 0 || argptr(1, &addr, n) < 0) {
+    if (argfd(0, 0, &f) < 0 || argint(2, &n) < 0 || argptr(1, &addr, (usize)n) < 0) {
         return -1;
     }
     return fileread(f, addr, n);
@@ -90,7 +90,7 @@ isize sys_write() {
     char *addr;
     i32 n;
 
-    if (argfd(0, 0, &f) < 0 || argint(2, &n) < 0 || argptr(1, &addr, n) < 0) {
+    if (argfd(0, 0, &f) < 0 || argint(2, &n) < 0 || argptr(1, &addr, (usize)n) < 0) {
         return -1;
     }
     return filewrite(f, addr, n);
@@ -125,8 +125,8 @@ isize sys_writev() {
     struct file *f;
     i32 fd, iovcnt;
     struct iovec *iov;
-    if (argfd(0, &fd, &f) < 0 || argint(2, &iovcnt) < 0 ||
-        argptr(1, &iov, iovcnt * sizeof(struct iovec)) < 0) {
+    if (argfd(0, (i64 *)&fd, &f) < 0 || argint(2, &iovcnt) < 0 ||
+        argptr(1, (char **)&iov, (u64)iovcnt * sizeof(struct iovec)) < 0) {
         return -1;
     }
     usize tot = 0;
@@ -134,9 +134,9 @@ isize sys_writev() {
         if (0) {
             return -1;
         }
-        tot += filewrite(f, p->iov_base, p->iov_len);
+        tot += (usize)filewrite(f, p->iov_base, (isize)p->iov_len);
     }
-    return tot;
+    return (isize)tot;
 }
 
 int sys_close() {
@@ -144,7 +144,7 @@ int sys_close() {
     struct file *f;
     int fd;
 
-    if (argfd(0, &fd, &f) < 0) {
+    if (argfd(0, (i64 *)&fd, &f) < 0) {
         return -1;
     }
 
@@ -222,25 +222,21 @@ Inode *create(char *path, short type, short major, short minor, OpContext *ctx) 
         inodes.put(ctx, ip);
         return 0;
     }
-    if ((ip = inodes.get(inodes.alloc(ctx, type))) == 0) {
+    if ((ip = inodes.get(inodes.alloc(ctx, (u16)type))) == 0) {
         PANIC("create: inodes.alloc");
     }
     inodes.lock(ip);
-    ip->entry.major = major;
-    ip->entry.minor = minor;
+    ip->entry.major = (u16)major;
+    ip->entry.minor = (u16)minor;
     ip->entry.num_links = 1;
     inodes.sync(ctx, ip, 1);
     if (type == INODE_DIRECTORY) {
         dp->entry.num_links++;
-        inodes.sync(&ctx, dp, 0);
-        if (inodes.insert(ctx, ip, ".", ip->inode_no) < 0 ||
-            inodes.insert(ctx, ip, "..", dp->inode_no) < 0) {
-            PANIC(". ..\n");
-        }
+        inodes.sync(ctx, dp, 0);
+        inodes.insert(ctx, ip, ".", ip->inode_no);
+        inodes.insert(ctx, ip, "..", dp->inode_no);
     }
-    if (inodes.insert(ctx, dp, name, ip->inode_no) < 0) {
-        PANIC("create: dirlink\n");
-    }
+    inodes.insert(ctx, dp, name, ip->inode_no);
 
     inodes.unlock(dp);
     inodes.put(ctx, dp);
@@ -352,7 +348,7 @@ int sys_mknodat() {
 
     OpContext ctx;
     bcache.begin_op(&ctx);
-    if ((ip = create(path, INODE_DEVICE, major, minor, &ctx)) == 0) {
+    if ((ip = create(path, INODE_DEVICE, (i16)major, (i16)minor, &ctx)) == 0) {
         bcache.end_op(&ctx);
         return -1;
     }

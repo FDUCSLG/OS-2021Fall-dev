@@ -2,6 +2,14 @@
 
 #include <common/defines.h>
 
+#ifdef RPIOS_FS_TEST
+
+static ALWAYS_INLINE usize cpuid() {
+    return 0;
+}
+
+#else
+
 static ALWAYS_INLINE usize cpuid() {
     u64 id;
     asm volatile("mrs %[x], mpidr_el1" : [x] "=r"(id));
@@ -141,3 +149,5 @@ static ALWAYS_INLINE void arch_disable_trap() {
 }
 
 void delay_us(u64 n);
+
+#endif

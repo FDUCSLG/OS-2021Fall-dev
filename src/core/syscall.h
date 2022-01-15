@@ -2,6 +2,7 @@
 
 #include <core/syscallno.h>
 #include <core/trapframe.h>
+#include <fs/inode.h>
 
 void sys_myexecve(char *s);
 NO_RETURN void sys_myexit();
@@ -26,6 +27,9 @@ int sys_mkdirat();
 int sys_mknodat();
 int sys_chdir();
 int sys_exec();
+
+int in_user(void *s, usize n);
+int fetchstr(u64 addr, char **pp);
 int argint(int n, int *ip);
 int argu64(int n, u64 *ip);
 int argptr(int n, char **pp, usize size);

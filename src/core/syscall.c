@@ -30,30 +30,30 @@ int sys_default() {
 }
 
 #define NR_SYSCALL 512
-const int (*syscall_table[NR_SYSCALL])() = {[0 ... NR_SYSCALL - 1] = sys_default,
-                                            [SYS_set_tid_address] = sys_gettid,
-                                            [SYS_ioctl] = sys_ioctl,
-                                            [SYS_gettid] = sys_gettid,
-                                            [SYS_rt_sigprocmask] = sys_sigprocmask,
-                                            [SYS_brk] = (const int *)sys_brk,
-                                            [SYS_execve] = sys_exec,
-                                            [SYS_sched_yield] = sys_yield,
-                                            [SYS_clone] = sys_clone,
-                                            [SYS_wait4] = sys_wait4,
-                                            [SYS_exit_group] = sys_exit,
-                                            [SYS_exit] = sys_exit,
-                                            [SYS_dup] = sys_dup,
-                                            [SYS_chdir] = sys_chdir,
-                                            [SYS_fstat] = sys_fstat,
-                                            [SYS_newfstatat] = sys_fstatat,
-                                            [SYS_mkdirat] = sys_mkdirat,
-                                            [SYS_mknodat] = sys_mknodat,
-                                            [SYS_openat] = sys_openat,
-                                            [SYS_writev] = sys_writev,
-                                            [SYS_read] = (const int *)sys_read,
-                                            [SYS_write] = sys_write,
-                                            [SYS_close] = sys_close,
-                                            [SYS_myyield] = sys_yield};
+int (*syscall_table[NR_SYSCALL])() = {[0 ... NR_SYSCALL - 1] = sys_default,
+                                      [SYS_set_tid_address] = sys_gettid,
+                                      [SYS_ioctl] = sys_ioctl,
+                                      [SYS_gettid] = sys_gettid,
+                                      [SYS_rt_sigprocmask] = sys_sigprocmask,
+                                      [SYS_brk] = (int (*)())sys_brk,
+                                      [SYS_execve] = sys_exec,
+                                      [SYS_sched_yield] = sys_yield,
+                                      [SYS_clone] = sys_clone,
+                                      [SYS_wait4] = sys_wait4,
+                                      [SYS_exit_group] = sys_exit,
+                                      [SYS_exit] = sys_exit,
+                                      [SYS_dup] = sys_dup,
+                                      [SYS_chdir] = sys_chdir,
+                                      [SYS_fstat] = sys_fstat,
+                                      [SYS_newfstatat] = sys_fstatat,
+                                      [SYS_mkdirat] = sys_mkdirat,
+                                      [SYS_mknodat] = sys_mknodat,
+                                      [SYS_openat] = sys_openat,
+                                      [SYS_writev] = (int (*)())sys_writev,
+                                      [SYS_read] = (int (*)())sys_read,
+                                      [SYS_write] = (int (*)())sys_write,
+                                      [SYS_close] = sys_close,
+                                      [SYS_myyield] = sys_yield};
 
 const char(*syscall_table_str[NR_SYSCALL]) = {[0 ... NR_SYSCALL - 1] = "sys_default",
                                               [SYS_set_tid_address] = "sys_gettid",
@@ -88,9 +88,9 @@ u64 syscall_dispatch(Trapframe *frame) {
     //     case SYS_myyield: yield(); break;
     //     default: PANIC("Unknown syscall!\n");
     // }
-    int sysno = frame->x[8];
+    int sysno = (int)frame->x[8];
     // if (sysno < 400) printf("%d %s\n", sysno, syscall_table_str[sysno]);
-    frame->x[0] = syscall_table[sysno]();
+    frame->x[0] = (u64)syscall_table[sysno]();
     return frame->x[0];
 }
 
@@ -115,11 +115,11 @@ int fetchstr(u64 addr, char **pp) {
     if (p->base <= addr && addr < p->sz) {
         for (; (u64)s < p->sz; s++)
             if (*s == 0)
-                return s - *pp;
+                return (int)(s - *pp);
     } else if (USPACE_TOP - p->stksz <= addr && addr < USPACE_TOP) {
         for (; (u64)s < USPACE_TOP; s++)
             if (*s == 0)
-                return s - *pp;
+                return (int)(s - *pp);
     }
     return -1;
 }
@@ -135,7 +135,7 @@ int argint(int n, int *ip) {
         // warn("too many system call parameters");
         return -1;
     }
-    *ip = proc->tf->x[n];
+    *ip = (int)proc->tf->x[n];
 
     return 0;
 }

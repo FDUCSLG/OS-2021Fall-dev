@@ -67,6 +67,11 @@ void *malloc1(size_t sz) {
     return &mem[i - sz];
 }
 
+void PANIC(char *s) {
+    fprintf(stderr, "%s\n", s);
+    exit(1);
+}
+
 // Execute cmd.  Never returns.
 void runcmd(struct cmd *cmd) {
     int p[2];
@@ -185,11 +190,6 @@ int main(int argc, char *argv[]) {
             runcmd(parsecmd(buf));
         wait(NULL);
     }
-}
-
-void PANIC(char *s) {
-    fprintf(stderr, "%s\n", s);
-    exit(1);
 }
 
 int fork1(void) {

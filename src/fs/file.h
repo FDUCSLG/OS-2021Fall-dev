@@ -19,7 +19,6 @@ typedef struct file {
     usize off;
 } File;
 
-
 void fileinit();
 struct file *filealloc();
 struct file *filedup(struct file *f);

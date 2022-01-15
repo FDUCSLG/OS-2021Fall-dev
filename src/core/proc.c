@@ -254,15 +254,15 @@ void idle_init() {
 int growproc(int n) {
     u32 sz;
 
-    sz = thiscpu()->proc->sz;
+    sz = (u32)thiscpu()->proc->sz;
 
     if (n > 0) {
-        if ((sz = uvm_alloc(thiscpu()->proc->pgdir, 0, 0, sz, sz + n)) == 0) {
+        if ((sz = (u32)uvm_alloc(thiscpu()->proc->pgdir, 0, 0, sz, sz + (u32)n)) == 0) {
             return -1;
         }
 
     } else if (n < 0) {
-        if ((sz = uvm_dealloc(thiscpu()->proc->pgdir, 0, sz, sz + n)) == 0) {
+        if ((sz = (u32)uvm_dealloc(thiscpu()->proc->pgdir, 0, sz, sz + (u32)n)) == 0) {
             return -1;
         }
     }

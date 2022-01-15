@@ -123,7 +123,7 @@ static void consputc(int c) {
         uart_put_char(' ');
         uart_put_char('\b');
     } else
-        uart_put_char(c);
+        uart_put_char((char)c);
 }
 
 isize console_write(Inode *ip, char *buf, isize n) {
@@ -138,7 +138,7 @@ isize console_write(Inode *ip, char *buf, isize n) {
 
 isize console_read(Inode *ip, char *dst, isize n) {
     inodes.unlock(ip);
-    usize target = n;
+    isize target = n;
     acquire_spinlock(&conslock);
     while (n > 0) {
         while (input.r == input.w) {
@@ -158,7 +158,7 @@ isize console_read(Inode *ip, char *dst, isize n) {
             }
             break;
         }
-        *dst++ = c;
+        *dst++ = (char)c;
         --n;
         if (c == '\n')
             break;
@@ -170,7 +170,7 @@ isize console_read(Inode *ip, char *dst, isize n) {
 }
 
 void console_intr(char (*getc)()) {
-    int c, doprocdump = 0;
+    int c /*, doprocdump = 0*/;
 
     acquire_spinlock(&conslock);
     if (panicked >= 0) {
@@ -183,7 +183,7 @@ void console_intr(char (*getc)()) {
         switch (c) {
             case C('P'):  // Process listing.
                 // procdump() locks cons.lock indirectly; invoke later
-                doprocdump = 1;
+                // doprocdump = 1;
                 break;
             case C('U'):  // Kill line.
                 while (input.e != input.w && input.buf[(input.e - 1) % INPUT_BUF] != '\n') {
@@ -201,7 +201,7 @@ void console_intr(char (*getc)()) {
             default:
                 if (c != 0 && input.e - input.r < INPUT_BUF) {
                     c = (c == '\r') ? '\n' : c;
-                    input.buf[input.e++ % INPUT_BUF] = c;
+                    input.buf[input.e++ % INPUT_BUF] = (char)c;
                     consputc(c);
                     if (c == '\n' || c == C('D') || input.e == input.r + INPUT_BUF) {
                         input.w = input.e;

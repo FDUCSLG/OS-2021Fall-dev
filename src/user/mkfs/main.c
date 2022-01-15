@@ -12,6 +12,7 @@ typedef uint32_t uint;
 
 // this file should be compiled with normal gcc...
 
+struct xv6_stat;
 #define stat  xv6_stat  // avoid clash with host struct stat
 #define sleep xv6_sleep
 // #include "../../../inc/fs.h"

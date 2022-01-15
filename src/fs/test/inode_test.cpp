@@ -58,8 +58,8 @@ void test_sync() {
 
     auto *q = mock.inspect(1);
     assert_eq(q->type, INODE_DIRECTORY);
-    assert_eq(q->entry.major, 0x19);
-    assert_eq(q->entry.minor, 0x26);
+    assert_eq(q->major, 0x19);
+    assert_eq(q->minor, 0x26);
     assert_eq(q->indirect, 0xa817);
 }
 

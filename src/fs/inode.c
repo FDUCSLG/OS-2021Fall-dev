@@ -2,7 +2,6 @@
 #include <core/arena.h>
 #include <core/console.h>
 #include <core/physical_memory.h>
-#include <core/proc.h>
 #include <core/sched.h>
 #include <fs/inode.h>
 
@@ -85,19 +84,6 @@ static usize inode_alloc(OpContext *ctx, InodeType type) {
 }
 
 // see `inode.h`.
-static void inode_lock(Inode *inode) {
-    assert(inode->rc.count > 0);
-    acquire_spinlock(&inode->lock);
-}
-
-// see `inode.h`.
-static void inode_unlock(Inode *inode) {
-    assert(holding_spinlock(&inode->lock));
-    assert(inode->rc.count > 0);
-    release_spinlock(&inode->lock);
-}
-
-// see `inode.h`.
 static void inode_sync(OpContext *ctx, Inode *inode, bool do_write) {
     usize block_no = to_block_no(inode->inode_no);
     Block *block = cache->acquire(block_no);
@@ -112,6 +98,23 @@ static void inode_sync(OpContext *ctx, Inode *inode, bool do_write) {
     }
 
     cache->release(block);
+}
+
+// see `inode.h`.
+static void inode_lock(Inode *inode) {
+    assert(inode->rc.count > 0);
+    acquire_spinlock(&inode->lock);
+
+    if (!inode->valid)
+        inode_sync(NULL, inode, false);
+    assert(inode->entry.type != INODE_INVALID);
+}
+
+// see `inode.h`.
+static void inode_unlock(Inode *inode) {
+    assert(holding_spinlock(&inode->lock));
+    assert(inode->rc.count > 0);
+    release_spinlock(&inode->lock);
 }
 
 // see `inode.h`.
@@ -141,10 +144,6 @@ static Inode *inode_get(usize inode_no) {
 
     release_spinlock(&lock);
 
-    inode_lock(inode);
-    inode_sync(NULL, inode, false);
-    assert(inode->entry.type != INODE_INVALID);
-    inode_unlock(inode);
     return inode;
 }
 
@@ -259,7 +258,7 @@ static usize inode_read(Inode *inode, u8 *dest, usize offset, usize count) {
 
     if (inode->entry.type == INODE_DEVICE) {
         assert(inode->entry.major == 1);
-        return console_read(inode, dest, count);
+        return (usize)console_read(inode, (char *)dest, (isize)count);
     }
     if (count + offset > entry->num_bytes)
         count = entry->num_bytes - offset;
@@ -290,7 +289,7 @@ static usize inode_write(OpContext *ctx, Inode *inode, u8 *src, usize offset, us
     usize end = offset + count;
     if (inode->entry.type == INODE_DEVICE) {
         assert(inode->entry.major == 1);
-        return console_write(inode, src, count);
+        return (usize)console_write(inode, (char *)src, (isize)count);
     }
     assert(offset <= entry->num_bytes);
     assert(end <= INODE_MAX_BYTES);
@@ -394,11 +393,11 @@ static const char *skipelem(const char *path, char *name) {
     s = path;
     while (*path != '/' && *path != 0)
         path++;
-    len = path - s;
+    len = (int)(path - s);
     if (len >= FILE_NAME_MAX_LENGTH)
         memmove(name, s, FILE_NAME_MAX_LENGTH);
     else {
-        memmove(name, s, len);
+        memmove(name, s, (usize)len);
         name[len] = 0;
     }
     while (*path == '/')
@@ -407,7 +406,7 @@ static const char *skipelem(const char *path, char *name) {
 }
 
 /* Look up and return the inode for a path name.
- * 
+ *
  * If parent != 0, return the inode for the parent and copy the final
  * path element into name, which must have room for DIRSIZ bytes.
  * Must be called inside a transaction since it calls iput().

@@ -88,13 +88,15 @@ isize fileread(struct file *f, char *addr, isize n) {
 
     if (f->readable == 0)
         return -1;
-    if (f->type == FD_PIPE)
-        ;
-    // return piperead(f->pipe, addr, n);
+
+    if (f->type == FD_PIPE) {
+        // return piperead(f->pipe, addr, n);
+    }
+
     if (f->type == FD_INODE) {
         inodes.lock(f->ip);
-        r = inodes.read(f->ip, addr, f->off, n);
-        f->off += r;
+        r = (isize)inodes.read(f->ip, (u8 *)addr, f->off, (usize)n);
+        f->off += (u64)r;
         inodes.unlock(f->ip);
         return r;
     }
@@ -130,8 +132,8 @@ isize filewrite(struct file *f, char *addr, isize n) {
             bcache.begin_op(&ctx);
             inodes.lock(f->ip);
 
-            r = inodes.write(&ctx, f->ip, addr + i, f->off, n1);
-            f->off += r;
+            r = (isize)inodes.write(&ctx, f->ip, (u8 *)(addr + i), f->off, (usize)n1);
+            f->off += (u64)r;
             inodes.unlock(f->ip);
             bcache.end_op(&ctx);
 

@@ -40,7 +40,9 @@ struct proc {
     Inode *cwd;                 /* Current directory */
     u64 stksz, base;
 };
+
 typedef struct proc proc;
+
 void init_proc();
 void spawn_init_process();
 void yield();

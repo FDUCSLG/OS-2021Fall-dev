@@ -11,7 +11,8 @@ include_directories(../..)
 
 set(compiler_warnings "-Wall -Wextra")
 set(compiler_flags "${compiler_warnings} \
-    -O0 -g \
+    -Wno-builtin-declaration-mismatch \
+    -O0 -g -DRPIOS_FS_TEST \
     -fno-omit-frame-pointer \
     -fsanitize=undefined \
     -fno-sanitize=alignment")
@@ -19,7 +20,7 @@ set(compiler_flags "${compiler_warnings} \
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${compiler_flags}")
 set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} ${compiler_flags}")
 
-file(GLOB mock_sources CONFIGURE_DEPENDS "mock/*.cpp")
+file(GLOB mock_sources CONFIGURE_DEPENDS "mock/*.cpp" "mock/*.c")
 add_library(mock STATIC ${mock_sources})
 
 file(GLOB fs_sources CONFIGURE_DEPENDS "../*.c")

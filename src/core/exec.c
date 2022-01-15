@@ -1,17 +1,15 @@
 #include <elf.h>
 
-#include "trap.h"
-
-#include <fs/file.h>
-#include <fs/inode.h>
-
 #include <aarch64/mmu.h>
+#include <common/string.h>
 #include <core/console.h>
 #include <core/proc.h>
 #include <core/sched.h>
+#include <core/syscall.h>
+#include <core/trap.h>
 #include <core/virtual_memory.h>
-
-#include <elf.h>
+#include <fs/file.h>
+#include <fs/inode.h>
 
 static uint64_t auxv[][2] = {{AT_PAGESZ, PAGE_SIZE}};
 
@@ -43,7 +41,7 @@ int execve(const char *path, char *const argv[], char *const envp[]) {
     inodes.lock(ip);
 
     Elf64_Ehdr elf;
-    inodes.read(ip, (char *)&elf, 0, sizeof(elf));
+    inodes.read(ip, (u8 *)&elf, 0, sizeof(elf));
     if (!(elf.e_ident[EI_MAG0] == ELFMAG0 && elf.e_ident[EI_MAG1] == ELFMAG1 &&
           elf.e_ident[EI_MAG2] == ELFMAG2 && elf.e_ident[EI_MAG3] == ELFMAG3)) {
         // debug("elf header magic invalid");
@@ -66,7 +64,7 @@ int execve(const char *path, char *const argv[], char *const envp[]) {
     usize sz = 0, base = 0, stksz = 0;
     int first = 1;
     for (i = 0, off = elf.e_phoff; i < elf.e_phnum; i++, off += sizeof(ph)) {
-        inodes.read(ip, (char *)&ph, off, sizeof(ph));
+        inodes.read(ip, (u8 *)&ph, off, sizeof(ph));
 
         if (ph.p_type != PT_LOAD) {
             // debug("unsupported type 0x%x, skipped\n", ph.p_type);
@@ -92,14 +90,14 @@ int execve(const char *path, char *const argv[], char *const envp[]) {
             }
         }
 
-        if ((sz = uvm_alloc(pgdir, base, stksz, sz, ph.p_vaddr + ph.p_memsz)) == 0) {
+        if ((sz = (usize)uvm_alloc(pgdir, base, stksz, sz, ph.p_vaddr + ph.p_memsz)) == 0) {
             // debug("uvm_alloc bad");
             goto bad;
         }
 
         uvm_switch(pgdir);
 
-        inodes.read(ip, (char *)ph.p_vaddr, ph.p_offset, ph.p_filesz);
+        inodes.read(ip, (u8 *)ph.p_vaddr, ph.p_offset, ph.p_filesz);
         // Initialize BSS.
         memset((void *)ph.p_vaddr + ph.p_filesz, 0, ph.p_memsz - ph.p_filesz);
 
@@ -118,33 +116,33 @@ int execve(const char *path, char *const argv[], char *const envp[]) {
     uvm_switch(oldpgdir);
     char *sp = (char *)USPACE_TOP;
     int argc = 0, envc = 0;
-    usize len;
+    isize len;
     if (argv) {
         for (; in_user((void *)(argv + argc), sizeof(*argv)) && argv[argc]; argc++) {
-            if ((len = fetchstr((uint64_t)argv[argc], &s)) < 0) {
+            if ((len = (isize)fetchstr((uint64_t)argv[argc], &s)) < 0) {
                 // debug("argv fetchstr bad");
                 goto bad;
             }
             // trace("argv[%d] = '%s', len: %d", argc, argv[argc], len);
             sp -= len + 1;
-            if (copyout(pgdir, sp, argv[argc], len + 1) < 0)  // include '\0';
+            if (copyout(pgdir, sp, argv[argc], (usize)(len + 1)) < 0)  // include '\0';
                 goto bad;
         }
     }
     if (envp) {
         for (; in_user((void *)(envp + envc), sizeof(*envp)) && envp[envc]; envc++) {
-            if ((len = fetchstr((uint64_t)envp[envc], &s)) < 0) {
+            if ((len = (isize)fetchstr((uint64_t)envp[envc], &s)) < 0) {
                 // debug("envp fetchstr bad");
                 goto bad;
             }
             // trace("envp[%d] = '%s', len: %d", envc, envp[envc], len);
             sp -= len + 1;
-            if (copyout(pgdir, sp, envp[envc], len + 1) < 0)  // include '\0';
+            if (copyout(pgdir, sp, envp[envc], (usize)(len + 1)) < 0)  // include '\0';
                 goto bad;
         }
     }
     // Align to 16B. 3 zero terminator of auxv/envp/argv and 1 argc.
-    void *newsp = (void *)round_down((usize)sp - sizeof(auxv) - (envc + argc + 4) * 8, 16);
+    void *newsp = (void *)round_down((usize)sp - sizeof(auxv) - (usize)(envc + argc + 4) * 8, 16);
     if (copyout(pgdir, newsp, 0, (usize)sp - (usize)newsp) < 0)
         goto bad;
 
@@ -167,7 +165,7 @@ int execve(const char *path, char *const argv[], char *const envp[]) {
             ;
         sp++;
     }
-    *(usize *)(newsp) = argc;
+    *(usize *)(newsp) = (usize)argc;
 
     sp = newsp;
     // trace("newsp: 0x%p", sp);
