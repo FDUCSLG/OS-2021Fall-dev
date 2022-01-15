@@ -8,9 +8,11 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS True)
 if(CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64")
     set(aarch64_prefix "")
     set(aarch64_gdb "gdb")
+    set(musl_flags "")
 else()
     set(aarch64_prefix "aarch64-linux-gnu-")
     set(aarch64_gdb "gdb-multiarch")
+    set(musl_flags "--target=aarch64")
 endif()
 
 set(aarch64_gcc "${aarch64_prefix}gcc")
@@ -28,7 +30,7 @@ get_property(kernel_image GLOBAL PROPERTY kernel_image_path)
 get_property(sd_image GLOBAL PROPERTY sd_image_path)
 
 execute_process(
-    COMMAND sh -c "qemu-system-aarch64 --version | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+'"
+    COMMAND sh -c "${aarch64_qemu} --version | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+'"
     OUTPUT_VARIABLE qemu_version
     OUTPUT_STRIP_TRAILING_WHITESPACE)
 
@@ -66,7 +68,7 @@ add_custom_command(
     OUTPUT ${musl_config}
     COMMAND git submodule update --init &&
             cd ../libc &&
-            CROSS_COMPILE=${aarch64_prefix} ./configure --target=aarch64 --enable-optimize --disable-debug)
+            CROSS_COMPILE=${aarch64_prefix} ./configure ${musl_flags})
 add_custom_target(init-libc ALL DEPENDS ${musl_config})
 
 set(musl_specs ${CMAKE_CURRENT_SOURCE_DIR}/libc/lib/musl-gcc.specs)
