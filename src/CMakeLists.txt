@@ -3,10 +3,17 @@ set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_COMPILER ${aarch64_gcc})
 set(CMAKE_ASM_COMPILER ${aarch64_gcc})
 
-include_directories(${CMAKE_CURRENT_SOURCE_DIR})
+include_directories(.)
+include_directories(../libc/obj/include)
+include_directories(../libc/include)
+include_directories(../libc/arch/aarch64)
+include_directories(../libc/arch/generic)
 
 set(compiler_warnings "-Wall -Wextra \
-    -Wconversion -Wsign-conversion")
+    -Wconversion -Wsign-conversion \
+    -Wno-initializer-overrides \
+    -Wno-override-init \
+    -Wno-cast-function-type")
 set(compiler_flags "${compiler_warnings} \
     -fno-pie -fno-pic -fno-stack-protector \
     -fno-zero-initialized-in-bss \
@@ -37,6 +44,7 @@ add_subdirectory(fs)
 
 set(kernel_name kernel8)
 add_executable(${kernel_name}.elf main.c start.S)
+
 target_link_libraries(${kernel_name}.elf core fs asm driver aarch64 common user)
 
 # because there's a cyclic dependency between core and fs, we need to link them

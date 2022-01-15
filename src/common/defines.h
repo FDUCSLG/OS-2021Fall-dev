@@ -6,12 +6,18 @@ typedef _Bool bool;
 static const bool true = 1;
 static const bool false = 0;
 
-#define NULL      ((void *)0)
+#ifndef NULL
+#define NULL ((void *)0)
+#endif
+
 #define NO_RETURN _Noreturn
 
 #else
 
-#define NULL      0
+#ifndef NULL
+#define NULL 0
+#endif
+
 #define NO_RETURN [[noreturn]]
 
 #define restrict __restrict__

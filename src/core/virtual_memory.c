@@ -292,7 +292,7 @@ void virtual_memory_init(VirtualMemoryTable *vmt_ptr) {
     vmt_ptr->pgdir_init = my_pgdir_init;
     vmt_ptr->pgdir_walk = my_pgdir_walk;
     vmt_ptr->uvm_copy = my_uvm_copy;
-    vmt_ptr->vm_free = vm_free;
+    vmt_ptr->vm_free = my_vm_free;
     vmt_ptr->uvm_map = my_uvm_map;
     vmt_ptr->uvm_alloc = my_uvm_alloc;
     vmt_ptr->uvm_dealloc = my_uvm_dealloc;
