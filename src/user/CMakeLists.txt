@@ -1,6 +1,7 @@
 file(GLOB user_sources CONFIGURE_DEPENDS "*.S")
 
 add_library(user STATIC ${user_sources})
+add_dependencies(user libc)
 
 set(CMAKE_C_STANDARD 11)
 

@@ -44,6 +44,7 @@ add_subdirectory(fs)
 
 set(kernel_name kernel8)
 add_executable(${kernel_name}.elf main.c start.S)
+
 target_link_libraries(${kernel_name}.elf core fs asm driver aarch64 common user)
 
 # because there's a cyclic dependency between core and fs, we need to link them
@@ -71,7 +72,7 @@ add_custom_command(
     COMMAND ${aarch64_objcopy} -O binary ${kernel_elf} ${kernel_img}
     DEPENDS ${kernel_elf})
 
-add_custom_target(kernel ALL DEPENDS ${kernel_asm} ${kernel_hdr} ${kernel_img} libc)
+add_custom_target(kernel ALL DEPENDS ${kernel_asm} ${kernel_hdr} ${kernel_img})
 
 set_property(GLOBAL PROPERTY kernel_elf_path ${kernel_elf})
 set_property(GLOBAL PROPERTY kernel_image_path ${kernel_img})
