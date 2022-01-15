@@ -30,7 +30,7 @@ get_property(kernel_image GLOBAL PROPERTY kernel_image_path)
 get_property(sd_image GLOBAL PROPERTY sd_image_path)
 
 execute_process(
-    COMMAND sh -c "${aarch64_qemu} --version | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+'"
+    COMMAND sh -c "${aarch64_qemu} --version | head -1 | cut -f 4 -d ' '"
     OUTPUT_VARIABLE qemu_version
     OUTPUT_STRIP_TRAILING_WHITESPACE)
 
